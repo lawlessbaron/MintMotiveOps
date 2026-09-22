@@ -47,7 +47,7 @@
   <div style="flex:1; display:flex; flex-direction:column; min-width:0;">
     <div class="topbar">
       <form class="search" action="{{ url_for('search.index') }}" method="get">
-        <input type="search" name="q" placeholder="Search parts, kits, clients, orders…" value="{{ request.args.get('q','') }}">
+        <input type="text" name="q" placeholder="Search parts, kits, clients, orders…" value="{{ request.args.get('q','') }}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
       </form>
       <div class="spacer"></div>
       <button class="theme-toggle" id="themeToggle" type="button">🌓 Theme</button>

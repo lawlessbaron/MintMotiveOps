@@ -85,7 +85,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   background: var(--card-bg);
 }
 .topbar form.search { flex: 1; max-width: 460px; }
-.topbar input[type=search] {
+.topbar form.search input {
   width: 100%; padding: 8px 14px; border-radius: var(--r-md);
   border: 1px solid var(--border); background: var(--page-bg); color: var(--text-primary);
   font-family: 'Helvetica', Arial, sans-serif;
