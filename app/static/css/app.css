@@ -248,5 +248,6 @@ textarea { min-height: 70px; }
   .app-shell { flex-direction: column; }
   .sidebar { width: 100%; }
   .content { padding: var(--sp-4); }
-  .topbar { padding: var(--sp-3) var(--sp-4); }
+  .topbar { padding: var(--sp-3) var(--sp-4); flex-wrap: wrap; row-gap: var(--sp-2); }
+  .topbar form.search { order: 10; flex: 1 1 100%; max-width: none; }
 }
