@@ -95,10 +95,10 @@ def seed(owner_email, owner_name="Reece"):
         print("✓ Australia seeded as a default country for Duties & Shipping.")
 
         # --- Integrations ---
-        for name in ("Shopify",):
+        for name in ("Shopify", "Stripe"):
             if db.execute("SELECT 1 FROM integration_settings WHERE integration_name=?", (name,)).fetchone() is None:
                 db.execute("INSERT INTO integration_settings (integration_name, status) VALUES (?, 'Inactive')", (name,))
-        print("✓ Integrations row seeded (Shopify — connect it from Administration > Integrations).")
+        print("✓ Integrations rows seeded (Shopify, Stripe — connect them from Administration > Integrations).")
 
         # --- Email templates ---
         if db.execute("SELECT COUNT(*) c FROM email_templates").fetchone()["c"] == 0:

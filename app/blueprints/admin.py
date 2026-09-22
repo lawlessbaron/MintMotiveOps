@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from werkzeug.security import generate_password_hash
 from ..db import get_db
 from ..utils import save_upload
+from .. import stripe_client
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -239,7 +240,9 @@ def integrations():
         flash("Integration settings saved.", "success")
         return redirect(url_for("admin.integrations"))
     integrations = db.execute("SELECT * FROM integration_settings ORDER BY integration_name").fetchall()
-    return render_template("admin/integrations.html", integrations=integrations)
+    return render_template(
+        "admin/integrations.html", integrations=integrations, stripe_configured=stripe_client.is_configured()
+    )
 
 
 @bp.route("/integrations/<name>/test-sync", methods=["POST"])
@@ -251,6 +254,13 @@ def test_sync(name):
         # reports the real, honest outcome instead of faking a success.
         result = "Failed — this environment can't reach the Shopify API (no outbound network access). On a deployed copy with a real Shopify API key and internet access, this pulls Products/Customers/Orders."
         status = "Error"
+    elif name == "Stripe":
+        if stripe_client.is_configured():
+            status = "Active"
+            result = "STRIPE_SECRET_KEY is set for this instance — Checkout Sessions and the /webhook/stripe endpoint are live. This does not call the Stripe API; it only confirms the key is present in the environment."
+        else:
+            status = "Inactive"
+            result = "STRIPE_SECRET_KEY is not set in this environment — add it (and STRIPE_WEBHOOK_SECRET) in your deployment's environment variables, then re-run Test Sync."
     else:
         result = "No test defined for this integration."
         status = "Inactive"
