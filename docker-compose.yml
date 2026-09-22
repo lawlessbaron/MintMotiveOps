@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mintmotive
+      POSTGRES_USER: mintmotive_app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mintmotive_app -d mintmotive"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # No "ports:" mapping on purpose — Postgres is reachable only from the
+    # web container over Docker's internal network (mintmotive_default),
+    # never from outside this machine. Zero network hop, zero exposure.
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://mintmotive_app:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/mintmotive
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+    volumes:
+      - uploads:/app/app/static/uploads
+    ports:
+      - "8000:8000"
+    # Put a reverse proxy (Caddy/Nginx) in front of this for HTTPS — see
+    # DEPLOYMENT.md's "Single-VPS deploy" section.
+
+volumes:
+  pgdata:
+  uploads:

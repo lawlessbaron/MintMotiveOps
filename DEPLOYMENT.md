@@ -1,14 +1,73 @@
 # Deploying MintMotive Ops
 
-This is a real, self-contained Flask app with a SQLite database file — there's no build step, no Node, no separate database server to provision. That makes it simple to deploy, but it does mean the one thing you must get right is **persistent storage for the database file**, since a few popular hosts wipe local disk on every deploy.
+This app runs against either SQLite (a single file, zero setup) or real PostgreSQL — same code, same features, no business logic changes either way (see `POSTGRES_SETUP.md`). **This deployment uses Postgres**, running on the same server as the app itself: see "Single-VPS deploy" below, which is the primary path for this project. The SQLite instructions further down still work and are kept for reference (e.g. quick local testing).
 
 ## What you're deploying
 
 - **App**: `app/` (Flask, Python 3.11+) — entry point is `run.py`, WSGI target is `app:create_app()` (a factory, so most WSGI servers need `--factory` or an explicit `wsgi.py` — see below).
-- **Database**: SQLite file at `instance/mintmotive.db`, created automatically from `schema.sql` the first time the app runs against a fresh `instance/` folder.
-- **Uploads**: product/kit/build images and documents saved under `app/static/uploads/` — these need the same persistent-disk treatment as the database.
+- **Database**: PostgreSQL, schema auto-applied from `schema_postgres.sql` the first time the app connects to an empty database. Runs as a sibling Docker container on the same VPS as the app — see below.
+- **Uploads**: product/kit/build images and documents saved under `app/static/uploads/` — persisted via a Docker volume in the single-VPS path (or a persistent disk on PaaS hosts).
 
-## Recommended host: Render.com
+## Single-VPS deploy: app + Postgres, same server, zero network hop
+
+If you want a real Postgres database instead of the SQLite file, but don't
+want it split onto a separate managed service, this is the setup: one VPS
+(DigitalOcean/Hetzner/Linode/a rented box — anything that gives you root
+and Docker), running the Flask app and Postgres as two containers on that
+one machine's private Docker network. They never leave the box to talk to
+each other — no internet hop, no separate server to keep in sync, and
+Postgres isn't reachable from outside at all (see `docker-compose.yml`,
+which deliberately has no `ports:` entry for the `db` service).
+
+This repo already has everything needed for this path: `Dockerfile`,
+`docker-compose.yml`, `.env.example`, and `Caddyfile.example`.
+
+1. **Get a VPS.** A $6-12/month droplet (1-2 GB RAM) is plenty for this
+   app's traffic. Point a DNS A record at its IP (e.g.
+   `ops.yourdomain.com.au`).
+2. **Install Docker** on it: `curl -fsSL https://get.docker.com | sh`
+   (works on any fresh Ubuntu/Debian box).
+3. **Get the code onto the server**: `git clone` this repo (or `git pull`
+   if you set it up once already).
+4. **Configure secrets**: `cp .env.example .env`, then edit `.env` and
+   fill in `POSTGRES_PASSWORD` and `SECRET_KEY` (the file tells you how to
+   generate a good one).
+5. **Start it**: `docker compose up -d --build`. This builds the app
+   image, starts Postgres, waits for Postgres to report healthy, then
+   starts the app — `schema_postgres.sql` is applied automatically the
+   first time the app connects to an empty database.
+6. **Seed your first login** (once): `docker compose exec web python3
+   seed.py you@yourdomain.com.au "Your Name"` — prints a temporary
+   password, change it immediately from Administration > Security.
+7. **Put HTTPS in front of it.** Easiest option is Caddy, which handles
+   Let's Encrypt certificates automatically with zero manual renewal:
+   ```
+   sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
+   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+   sudo apt update && sudo apt install caddy
+   ```
+   Then `cp Caddyfile.example Caddyfile`, edit in your real domain, copy
+   it to `/etc/caddy/Caddyfile`, and `sudo systemctl restart caddy`. Caddy
+   listens on 80/443 and reverse-proxies to the app container on 8000.
+8. **Updates from then on**: `git pull && docker compose up -d --build`
+   — Postgres data and uploaded files live in named Docker volumes
+   (`pgdata`, `uploads`), so rebuilding the app container never touches
+   them.
+9. **Backups**: `docker compose exec db pg_dump -U mintmotive_app
+   mintmotive | gzip > backup-$(date +%F).sql.gz` (cron it). Restoring is
+   `gunzip -c backup-2026-09-22.sql.gz | docker compose exec -T db psql -U
+   mintmotive_app mintmotive`.
+
+If you're bringing across data you already entered into a SQLite copy
+while testing, run `python3 migrate_sqlite_to_postgres.py` once, pointed
+at this server's Postgres — see `POSTGRES_SETUP.md` for the exact steps.
+
+## SQLite path (reference — not what this deployment uses)
+
+The instructions below describe deploying the SQLite-backed version instead. Kept for reference in case you ever want a simpler single-file setup (e.g. for local testing or a low-traffic instance).
+
+### Recommended host: Render.com
 
 Render's free/starter web services support a persistent disk, which is exactly what a SQLite app needs.
 
@@ -63,10 +122,6 @@ The app builds every outgoing email as a real, editable draft (subject + body, p
 
 Administration > Integrations has a working "Test Sync" button that, once deployed with internet access, is where a real Shopify Admin API call (Products/Customers/Orders) gets wired in — right now it honestly reports that this sandbox can't reach Shopify's API rather than faking a result. Add a Shopify custom app API key as `SHOPIFY_API_KEY`/`SHOPIFY_STORE_DOMAIN` env vars and implement the sync in `app/blueprints/admin.py` (`test_sync`) when you're ready.
 
-## Growing beyond SQLite
+## SQLite backups (only relevant if you're on the SQLite path above)
 
-SQLite comfortably handles a single-warehouse operation like this at real production traffic levels (it's used in production by much bigger apps than this). If you want a separately-hosted database instead — for multiple servers sharing one database, managed backups, or read replicas — this is already built in and ready to use: see `POSTGRES_SETUP.md`. Set a `DATABASE_URL` environment variable pointing at a Postgres instance (Render/Railway/Fly/Neon/Azure Database for PostgreSQL all offer one) and the app uses it automatically instead of the SQLite file — no code changes needed, and `migrate_sqlite_to_postgres.py` brings across any data you've already entered.
-
-## Backups
-
-Until you're on a managed database, back up `instance/mintmotive.db` regularly — it's a single file, so `cp instance/mintmotive.db backups/mintmotive-$(date +%F).db` (cron it, or use your host's disk-snapshot feature if it has one) is a complete backup of every record in the system.
+Back up `instance/mintmotive.db` regularly — it's a single file, so `cp instance/mintmotive.db backups/mintmotive-$(date +%F).db` (cron it, or use your host's disk-snapshot feature if it has one) is a complete backup of every record in the system. If you're on the Postgres/single-VPS path instead, use the `pg_dump` backup command in that section above.

@@ -1,0 +1,7 @@
+# Copy to Caddyfile, replace the domain, and run Caddy alongside the app
+# (see DEPLOYMENT.md's "Single-VPS deploy" section). Caddy gets you free,
+# auto-renewing HTTPS (Let's Encrypt) with no manual certificate work.
+
+ops.yourdomain.com.au {
+    reverse_proxy localhost:8000
+}

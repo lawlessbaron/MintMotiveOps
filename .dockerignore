@@ -1,0 +1,14 @@
+.git
+.gitignore
+instance/
+*.db
+__pycache__/
+*.pyc
+.venv/
+venv/
+local_agent/config.json
+.env
+*.md
+docs_build/
+functional_test.py
+smoke_test.py
