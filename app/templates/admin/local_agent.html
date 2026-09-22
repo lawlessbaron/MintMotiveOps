@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Local Agent — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Administration</h1></div>
+<div class="tabs">
+  <a href="{{ url_for('admin.index') }}">Overview</a>
+  <a href="{{ url_for('admin.company') }}">Company</a>
+  <a href="{{ url_for('admin.duties_shipping') }}">Duties &amp; Shipping</a>
+  <a href="{{ url_for('admin.numbering') }}">Numbering</a>
+  <a href="{{ url_for('admin.integrations') }}">Integrations</a>
+  <a href="{{ url_for('admin.security') }}">Security</a>
+  <a href="{{ url_for('admin.appearance') }}">Appearance</a>
+  <a href="{{ url_for('admin.audit_log') }}">Audit Log</a>
+  <a class="active" href="{{ url_for('admin.local_agent') }}">Local Agent</a>
+</div>
+
+<div class="card">
+  <h2>What This Is</h2>
+  <p class="subtitle">
+    A browser page can't talk to a USB-connected programmer or poll a smart plug on the workshop
+    LAN directly. The <strong>Local Agent</strong> is a small helper program (<code>local_agent/flasher_agent.py</code>)
+    that runs on the workshop PC instead — the one with the boards and plugs physically attached to
+    it — and listens on <code>http://localhost:8765</code>. Firmware Flashing (Kit Firmware Versions
+    and Build detail) and IoT Power Monitoring (Assets) both talk to it from right inside this app:
+    the page in your browser calls the agent on localhost, the agent does the real USB/network work,
+    and it reports results back here using the API key below.
+  </p>
+</div>
+
+<div class="card" style="max-width:640px;">
+  <h2>API Key</h2>
+  <p class="subtitle">The shared secret the local agent sends as the <code>X-API-Key</code> header on every report it sends back. Regenerating it invalidates the old one — update <code>local_agent/config.json</code> on the workshop PC afterwards.</p>
+  {% if company.local_agent_api_key %}
+  <div class="form-row" style="align-items:flex-end;">
+    <div style="flex:1;"><label>Current Key</label><input readonly value="{{ company.local_agent_api_key }}" onclick="this.select()"></div>
+  </div>
+  {% else %}
+  <p class="subtitle" style="color:#b3261e;">No key generated yet — the local agent can't authenticate until you generate one.</p>
+  {% endif %}
+  <form method="post" style="margin-top:10px;">
+    <button class="btn btn-accent" type="submit">{{ 'Regenerate Key' if company.local_agent_api_key else 'Generate Key' }}</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Workshop PC Setup</h2>
+  <p class="subtitle">On the PC with the USB programmer / on the workshop LAN:</p>
+  <ol style="padding-left:20px; color:var(--text-secondary); font-size:13.5px; line-height:1.8;">
+    <li>Copy the <code>local_agent/</code> folder from the app package onto that PC.</li>
+    <li>Edit <code>local_agent/config.json</code>: set <code>mintmotive_url</code> to <code>{{ request.host_url.rstrip('/') }}</code> and <code>api_key</code> to the key above.</li>
+    <li>Install its dependencies (<code>pip install -r local_agent/requirements.txt</code>) — this includes <code>pyserial</code> for USB and <code>avrdude</code> must be on the system PATH for AVR flashing.</li>
+    <li>Run <code>python3 local_agent/flasher_agent.py</code>. It listens on <code>http://localhost:8765</code> and only accepts connections from that same machine's browser.</li>
+    <li>Open Kit Firmware Versions or a Build's detail page in this app, on that same PC — the "Flash to Device" button will now find the agent automatically.</li>
+  </ol>
+</div>
+
+<div class="card">
+  <h2>Power-Monitored Assets</h2>
+  <p class="subtitle">Assets with a smart-plug reference set (Assets &gt; edit an asset) — the local agent polls these on the workshop LAN and reports wattage back here.</p>
+  <table class="data-table">
+    <tr><th>Asset</th><th>Plug Reference</th></tr>
+    {% for a in monitored_assets %}
+    <tr><td><a class="row-link" href="{{ url_for('assets.detail', asset_id=a.id) }}">{{ a.asset_name }}</a></td><td class="subtitle">{{ a.power_plug_reference }}</td></tr>
+    {% else %}<tr><td colspan="2" class="empty-state">No assets configured for power monitoring yet.</td></tr>{% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h2>Recent Flash Activity</h2>
+  <table class="data-table">
+    <tr><th>When</th><th>Build</th><th>Firmware</th><th>Port</th><th>Result</th></tr>
+    {% for f in recent_flashes %}
+    <tr>
+      <td class="subtitle">{{ f.flashed_at }}</td>
+      <td>{{ f.build_number or '—' }}</td>
+      <td>{{ f.version_label or '—' }}</td>
+      <td class="subtitle">{{ f.device_port or '—' }}</td>
+      <td><span class="badge {{ 'accent' if f.result=='Success' }}" style="{{ 'background:#b3261e;color:#fff;' if f.result=='Failed' }}">{{ f.result }}</span></td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="empty-state">No flash activity logged yet.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

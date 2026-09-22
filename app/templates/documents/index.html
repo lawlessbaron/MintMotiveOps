@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Documents — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1>Documents</h1><div class="subtitle">Files linked to clients, suppliers, orders, kits, and builds — invoices, drawings, packing slips, anything.</div></div></div>
+
+<div class="card">
+  <h2>Upload a Document</h2>
+  <form method="post" action="{{ url_for('documents.upload') }}" enctype="multipart/form-data">
+    <div class="form-row">
+      <div><label>File</label><input type="file" name="file" required></div>
+      <div><label>Document Name (optional — defaults to filename)</label><input name="document_name"></div>
+      <div><label>Document Type</label><select name="document_type_id"><option value="">—</option>{% for t in document_types %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></div>
+    </div>
+    <p class="subtitle">Link to (optional — pick whichever applies):</p>
+    <div class="form-row">
+      <div><label>Client</label><select name="related_client_id"><option value="">—</option>{% for c in clients %}<option value="{{ c.id }}">{{ c.client_name }}</option>{% endfor %}</select></div>
+      <div><label>Supplier</label><select name="related_supplier_id"><option value="">—</option>{% for s in suppliers %}<option value="{{ s.id }}">{{ s.supplier_name }}</option>{% endfor %}</select></div>
+      <div><label>Purchase Order</label><select name="related_purchase_order_id"><option value="">—</option>{% for p in purchase_orders %}<option value="{{ p.id }}">{{ p.po_number }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="form-row">
+      <div><label>Sales Order</label><select name="related_sales_order_id"><option value="">—</option>{% for so in sales_orders %}<option value="{{ so.id }}">{{ so.order_number }}</option>{% endfor %}</select></div>
+      <div><label>Kit</label><select name="related_kit_id"><option value="">—</option>{% for k in kits %}<option value="{{ k.id }}">{{ k.kit_name }}</option>{% endfor %}</select></div>
+      <div><label>Build</label><select name="related_build_id"><option value="">—</option>{% for b in builds %}<option value="{{ b.id }}">{{ b.build_number }}</option>{% endfor %}</select></div>
+    </div>
+    <label>Notes</label><textarea name="notes"></textarea>
+    <button class="btn btn-accent" style="margin-top:10px;" type="submit">Upload</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>All Documents</h2>
+  <form method="get" style="margin-bottom:12px; max-width:280px;">
+    <select name="type_id" onchange="this.form.submit()">
+      <option value="">All types</option>
+      {% for t in document_types %}<option value="{{ t.id }}" {{ 'selected' if type_id|string == t.id|string }}>{{ t.name }}</option>{% endfor %}
+    </select>
+  </form>
+  {% if documents %}
+  <table class="data-table">
+    <tr><th>Name</th><th>Type</th><th>Linked To</th><th>Uploaded</th><th></th></tr>
+    {% for d in documents %}
+    <tr>
+      <td><a class="row-link" href="{{ url_for('static', filename=d.file_path) }}" target="_blank">{{ d.document_name }}</a></td>
+      <td>{{ d.type_name or '—' }}</td>
+      <td class="subtitle">
+        {%- if d.client_name %}Client: {{ d.client_name }}{% elif d.supplier_name %}Supplier: {{ d.supplier_name }}
+        {%- elif d.po_number %}PO: {{ d.po_number }}{% elif d.order_number %}Order: {{ d.order_number }}
+        {%- elif d.kit_name %}Kit: {{ d.kit_name }}{% elif d.build_number %}Build: {{ d.build_number }}
+        {%- else %}—{% endif %}
+      </td>
+      <td>{{ d.upload_date }}</td>
+      <td>
+        <form method="post" action="{{ url_for('documents.delete', doc_id=d.id) }}" onsubmit="return confirm('Remove this document?');" style="display:inline;">
+          <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<div class="empty-state">No documents uploaded yet.</div>{% endif %}
+</div>
+{% endblock %}

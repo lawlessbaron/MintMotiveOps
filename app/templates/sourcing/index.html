@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Sourcing Prospects — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Sourcing Prospects</h1><div class="subtitle">Stock you're considering — kept separate from real inventory until you approve it.</div></div>
+  <a class="btn btn-accent" href="{{ url_for('sourcing.new') }}">+ New Prospect</a>
+</div>
+<div class="card">
+  <form method="get">
+    <select name="status" onchange="this.form.submit()">
+      <option value="">All statuses</option>
+      {% for s in ['Researching','Sample Requested','Sample Received','Approved','Rejected','On Hold'] %}
+      <option value="{{ s }}" {{ 'selected' if status==s }}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+{% if prospects %}
+<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px;">
+  {% for p in prospects %}
+  <div class="card" style="margin-bottom:0;">
+    {% if p.product_image_path %}<img src="/static/{{ p.product_image_path }}" style="width:100%;height:140px;object-fit:cover;border-radius:8px;">{% else %}<div style="width:100%;height:140px;background:var(--border);border-radius:8px;"></div>{% endif %}
+    <h3 style="margin-top:10px;">{{ p.prospect_name }}</h3>
+    <div class="subtitle">{{ p.source_platform or '' }} · {{ p.currency }} {{ '%.2f'|format(p.quoted_unit_price) if p.quoted_unit_price else '—' }}</div>
+    {% if p.source_link %}<a href="{{ p.source_link }}" target="_blank" style="font-size:12.5px;">View listing ↗</a>{% endif %}
+    <form method="post" action="{{ url_for('sourcing.update_status', prospect_id=p.id) }}" style="margin-top:10px;">
+      <select name="status" onchange="this.form.submit()">
+        {% for s in ['Researching','Sample Requested','Sample Received','Approved','Rejected','On Hold'] %}
+        <option value="{{ s }}" {{ 'selected' if p.status==s }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    {% if not p.converted_to_part_id %}
+    <form method="post" action="{{ url_for('sourcing.convert', prospect_id=p.id) }}" style="margin-top:8px;">
+      <button class="btn btn-accent btn-sm" type="submit" style="width:100%;">Convert to Part</button>
+    </form>
+    {% else %}<div class="badge accent" style="margin-top:8px;">Converted to Part</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}<div class="card"><div class="empty-state">No prospects yet — add a listing you're considering.</div></div>{% endif %}
+{% endblock %}

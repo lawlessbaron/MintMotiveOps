@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Numbering — Administration{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Administration</h1></div>
+<div class="tabs">
+  <a href="{{ url_for('admin.index') }}">Overview</a>
+  <a href="{{ url_for('admin.company') }}">Company</a>
+  <a href="{{ url_for('admin.duties_shipping') }}">Duties &amp; Shipping</a>
+  <a class="active" href="{{ url_for('admin.numbering') }}">Numbering</a>
+  <a href="{{ url_for('admin.integrations') }}">Integrations</a>
+  <a href="{{ url_for('admin.security') }}">Security</a>
+  <a href="{{ url_for('admin.appearance') }}">Appearance</a>
+  <a href="{{ url_for('admin.audit_log') }}">Audit Log</a>
+  <a href="{{ url_for('admin.local_agent') }}">Local Agent</a>
+</div>
+
+<div class="card">
+  <h2>Document Numbering</h2>
+  <p class="subtitle">Every auto-generated number (Parts, Suppliers, Kits, Sales Orders, Purchase Orders, Quotes, Invoices, Builds) is built as Prefix + zero-padded Next Number, then Next Number increments by 1. Change these with care — numbers already issued are never renumbered.</p>
+  {% for s in sequences %}
+  <form method="post" action="{{ url_for('admin.numbering') }}" id="num-form-{{ s.id }}"><input type="hidden" name="id" value="{{ s.id }}"></form>
+  {% endfor %}
+  <table class="data-table">
+    <tr><th>Entity</th><th>Prefix</th><th>Next Number</th><th>Padding Length</th><th>Preview</th><th></th></tr>
+    {% for s in sequences %}
+    <tr>
+      <td style="font-weight:600;">{{ s.entity_name }}</td>
+      <td style="max-width:100px;"><input form="num-form-{{ s.id }}" name="prefix" value="{{ s.prefix or '' }}"></td>
+      <td style="max-width:120px;"><input form="num-form-{{ s.id }}" type="number" min="1" name="next_number" value="{{ s.next_number }}"></td>
+      <td style="max-width:120px;"><input form="num-form-{{ s.id }}" type="number" min="1" max="12" name="padding_length" value="{{ s.padding_length }}"></td>
+      <td style="font-family:monospace; color:var(--text-secondary);">{{ s.prefix or '' }}{{ '%0*d' % (s.padding_length, s.next_number) }}</td>
+      <td><button form="num-form-{{ s.id }}" class="btn btn-accent btn-sm" type="submit">Save</button></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="subtitle">No numbering sequences yet — one is created automatically the first time each document type is used.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

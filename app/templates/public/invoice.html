@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ doc.invoice_number }} — {{ company.company_name }}{% endblock %}
+{% block bare_content %}
+<style>
+  body { background: {{ company.light_page_bg }}; padding: 40px 16px; }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  .pay-box { background: #fff; border-radius: 14px; padding: 24px; margin-top: 20px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+  .pay-box .amount { font-size: 32px; font-weight: 700; margin: 10px 0; }
+</style>
+<div class="wrap">
+  {% set doc_label = doc_label %}{% set show_abn = show_abn %}
+  {% include "_document_preview.html" %}
+
+  <div class="pay-box">
+    {% if doc.status == 'Paid' %}
+      <h2 style="color:#1b7a3d;">✓ Paid</h2>
+      <p>This invoice has been paid{% if doc.paid_at %} on {{ doc.paid_at }}{% endif %}. Thank you!</p>
+    {% else %}
+      <p>Amount Due</p>
+      <div class="amount">${{ "%.2f"|format(totals.total) }} {{ totals.currency }}</div>
+      <form method="post" action="{{ url_for('public.checkout', token=token) }}">
+        <button class="btn btn-accent" style="padding:12px 32px; font-size:15px;" type="submit">Pay Now</button>
+      </form>
+      {% if not stripe_ready %}
+      <p class="subtitle" style="margin-top:12px; font-size:12px;">(Payments aren't live on this preview — configure STRIPE_SECRET_KEY on your deployed copy to accept real payments here.)</p>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

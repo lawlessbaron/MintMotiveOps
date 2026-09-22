@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Assets — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Assets</h1><div class="subtitle">Printers, tools, and equipment — not sellable inventory.</div></div>
+  <a class="btn btn-accent" href="{{ url_for('assets.new') }}">+ New Asset</a>
+</div>
+<div class="card">
+  <form method="get" class="form-row">
+    <div><input type="search" name="q" placeholder="Search name or serial…" value="{{ q }}"></div>
+    <div>
+      <select name="status" onchange="this.form.submit()">
+        <option value="">All statuses</option>
+        <option value="In Service" {{ 'selected' if status=='In Service' }}>In Service</option>
+        <option value="Under Maintenance" {{ 'selected' if status=='Under Maintenance' }}>Under Maintenance</option>
+        <option value="Retired" {{ 'selected' if status=='Retired' }}>Retired</option>
+      </select>
+    </div>
+  </form>
+</div>
+<div class="card">
+  {% if assets %}
+  <table class="data-table">
+    <tr><th>Asset</th><th>Type</th><th>Serial #</th><th>Location</th><th>Status</th></tr>
+    {% for a in assets %}
+    <tr>
+      <td><a class="row-link" href="{{ url_for('assets.detail', asset_id=a.id) }}">{{ a.asset_name }}</a></td>
+      <td>{{ a.type_name or '—' }}</td>
+      <td>{{ a.serial_number or '—' }}</td>
+      <td>{{ a.location_name or '—' }}</td>
+      <td><span class="badge {{ 'accent' if a.status=='In Service' }}">{{ a.status }}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<div class="empty-state">No assets yet.</div>{% endif %}
+</div>
+{% endblock %}

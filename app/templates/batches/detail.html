@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}{{ batch.batch_number }} — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>{{ batch.batch_number }}</h1><div class="subtitle">{{ batch.kit_name }} × {{ batch.quantity }}</div></div>
+  <span class="badge accent">{{ batch.status }}</span>
+</div>
+
+<div class="card">
+  <h2>Status &amp; Builds</h2>
+  <form method="post" action="{{ url_for('batches.update_status', batch_id=batch.id) }}" class="form-row" style="align-items:flex-end;">
+    <div><label>Status</label>
+      <select name="status">
+        {% for s in ['Planned','Picking','In Production','Complete','Cancelled'] %}
+        <option value="{{ s }}" {{ 'selected' if batch.status==s }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div><button class="btn btn-accent" type="submit">Update Status</button></div>
+  </form>
+  <form method="post" action="{{ url_for('batches.spawn_builds', batch_id=batch.id) }}" style="margin-top:10px;">
+    <button class="btn" type="submit">Spawn Remaining Builds ({{ batch.quantity - builds|length }} left)</button>
+  </form>
+  <table class="data-table" style="margin-top:14px;">
+    <tr><th>Build</th><th>Client</th><th>Status</th><th>Serial</th></tr>
+    {% for b in builds %}
+    <tr>
+      <td><a class="row-link" href="{{ url_for('builds.detail', build_id=b.id) }}">{{ b.build_number }}</a></td>
+      <td>{{ b.client_name or '—' }}</td>
+      <td><span class="badge accent">{{ b.status }}</span></td>
+      <td>{{ b.serial_number or '—' }}</td>
+    </tr>
+    {% else %}<tr><td colspan="4" class="empty-state">No builds spawned yet.</td></tr>{% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h2>Pick List</h2>
+  <p class="subtitle">
+    Parts in a named Gridfinity baseplate are walked in serpentine order (row by row, alternating
+    direction each row) — the shortest real walk of the bins — and grouped baseplate by baseplate,
+    shown first. Anything in a plain shelf or workstation location falls back to a location-grouped
+    list below that.
+  </p>
+
+  {% for map in grid_maps %}
+  <div class="gridfinity-map">
+    <div class="gf-title">Baseplate: {{ map.baseplate_name }}</div>
+    {% for grid_row in map.grid_rows %}
+    <div class="gridfinity-row">
+      {% for cell in grid_row %}
+      <div class="gridfinity-cell {{ 'needed' if cell.needed else 'empty' }}">
+        {% if cell.needed %}
+          <span class="gf-order">{{ cell.pick_order }}</span>
+          <div>{{ cell.part_name }}</div>
+          <div class="gf-qty">{{ cell.part_number or '' }} · x{{ cell.quantity_needed }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+
+  <table class="data-table">
+    <tr><th>#</th><th>Baseplate / Location</th><th>Part</th><th>Qty Needed</th><th>On Hand</th></tr>
+    {% for row in pick_list %}
+    <tr>
+      <td class="subtitle">{{ row.pick_order }}</td>
+      <td>
+        {% if row.baseplate_name %}
+          {{ row.baseplate_name }} <span class="subtitle">({{ row.grid_x }},{{ row.grid_y }})</span>
+        {% else %}
+          {{ row.bin_location_name }}
+        {% endif %}
+      </td>
+      <td>{{ row.part_name }} <span class="subtitle">{{ row.part_number or '' }}</span></td>
+      <td>{{ row.quantity_needed }}</td>
+      <td class="{{ 'subtitle' if row.quantity_on_hand >= row.quantity_needed else '' }}" style="{{ 'color:#b3261e; font-weight:600;' if row.quantity_on_hand < row.quantity_needed }}">{{ row.quantity_on_hand }}</td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="empty-state">Nothing needed (empty BOM).</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

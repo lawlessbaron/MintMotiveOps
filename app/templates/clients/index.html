@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Clients — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Clients</h1><div class="subtitle">Every client, their own record — addresses and contacts live on their detail page.</div></div>
+  <a class="btn btn-accent" href="{{ url_for('clients.new') }}">+ New Client</a>
+</div>
+<div class="card">
+  <form class="form-row" method="get">
+    <div><input type="search" name="q" placeholder="Search name, company, email…" value="{{ q }}"></div>
+    <div>
+      <select name="status" onchange="this.form.submit()">
+        <option value="">All statuses</option>
+        <option value="Active" {{ 'selected' if status=='Active' }}>Active</option>
+        <option value="Inactive" {{ 'selected' if status=='Inactive' }}>Inactive</option>
+      </select>
+    </div>
+  </form>
+</div>
+<div class="card">
+  {% if clients %}
+  <table class="data-table">
+    <tr><th>Name</th><th>Company</th><th>Type</th><th>Email</th><th>Status</th></tr>
+    {% for c in clients %}
+    <tr>
+      <td><a class="row-link" href="{{ url_for('clients.detail', client_id=c.id) }}">{{ c.client_name }}</a></td>
+      <td>{{ c.company or '—' }}</td>
+      <td>{{ c.client_type }}</td>
+      <td>{{ c.email or '—' }}</td>
+      <td><span class="badge {{ 'accent' if c.status=='Active' }}">{{ c.status }}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<div class="empty-state">No clients yet — add your first one.</div>{% endif %}
+</div>
+{% endblock %}

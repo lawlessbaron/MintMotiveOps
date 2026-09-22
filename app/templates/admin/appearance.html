@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Appearance — Administration{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Administration</h1></div>
+<div class="tabs">
+  <a href="{{ url_for('admin.index') }}">Overview</a>
+  <a href="{{ url_for('admin.company') }}">Company</a>
+  <a href="{{ url_for('admin.duties_shipping') }}">Duties &amp; Shipping</a>
+  <a href="{{ url_for('admin.numbering') }}">Numbering</a>
+  <a href="{{ url_for('admin.integrations') }}">Integrations</a>
+  <a href="{{ url_for('admin.security') }}">Security</a>
+  <a class="active" href="{{ url_for('admin.appearance') }}">Appearance</a>
+  <a href="{{ url_for('admin.audit_log') }}">Audit Log</a>
+  <a href="{{ url_for('admin.local_agent') }}">Local Agent</a>
+</div>
+
+<div class="card">
+  <p class="subtitle">Every color used across the whole app — sidebar, cards, text, borders, buttons — is one of these values, 9 per mode for Light mode and Dark mode. Change one here and it applies everywhere immediately, no rebuild. Use the theme toggle in the topbar to check your changes in both modes.</p>
+
+  <form method="post" action="{{ url_for('admin.appearance') }}">
+    <div class="form-row" style="align-items:flex-start; gap:32px;">
+      <div style="flex:1; min-width:280px;">
+        <h3>Light Mode</h3>
+        {% for field, label in [
+          ('light_page_bg', 'Page Background'),
+          ('light_card_bg', 'Card Background'),
+          ('light_text_primary', 'Primary Text'),
+          ('light_text_secondary', 'Secondary Text'),
+          ('light_accent', 'Accent'),
+          ('light_border', 'Border'),
+          ('light_sidebar_bg', 'Sidebar Background'),
+          ('light_sidebar_text', 'Sidebar Text'),
+          ('light_text_on_accent', 'Text on Accent'),
+        ] %}
+        <div class="color-swatch-row">
+          <label for="{{ field }}">{{ label }}</label>
+          <input type="color" name="{{ field }}" id="{{ field }}" value="{{ company[field] or '#FFFFFF' }}">
+          <input type="text" style="width:100px;" value="{{ company[field] or '' }}" oninput="document.getElementById('{{ field }}').value=this.value" onchange="document.getElementById('{{ field }}').value=this.value">
+        </div>
+        {% endfor %}
+      </div>
+      <div style="flex:1; min-width:280px;">
+        <h3>Dark Mode</h3>
+        {% for field, label in [
+          ('dark_page_bg', 'Page Background'),
+          ('dark_card_bg', 'Card Background'),
+          ('dark_text_primary', 'Primary Text'),
+          ('dark_text_secondary', 'Secondary Text'),
+          ('dark_accent', 'Accent'),
+          ('dark_border', 'Border'),
+          ('dark_sidebar_bg', 'Sidebar Background'),
+          ('dark_sidebar_text', 'Sidebar Text'),
+          ('dark_text_on_accent', 'Text on Accent'),
+        ] %}
+        <div class="color-swatch-row">
+          <label for="{{ field }}">{{ label }}</label>
+          <input type="color" name="{{ field }}" id="{{ field }}" value="{{ company[field] or '#000000' }}">
+          <input type="text" style="width:100px;" value="{{ company[field] or '' }}" oninput="document.getElementById('{{ field }}').value=this.value" onchange="document.getElementById('{{ field }}').value=this.value">
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <button class="btn btn-accent" style="margin-top:16px;" type="submit">Save Appearance</button>
+  </form>
+
+  <form method="post" action="{{ url_for('admin.appearance_reset') }}" style="margin-top:10px;" onsubmit="return confirm('Reset all 16 colors back to the MintMotive brand defaults? Any custom colors will be lost.');">
+    <button class="btn" type="submit">Reset to Brand Defaults</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}{{ kit.kit_name }} — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div style="display:flex; gap:14px; align-items:center;">
+    {% if kit.kit_image_path %}<img src="/static/{{ kit.kit_image_path }}" style="width:56px;height:56px;object-fit:cover;border-radius:10px;">{% endif %}
+    <div><h1>{{ kit.kit_name }} {% if kit.is_subassembly %}<span class="badge">Sub-Assembly</span>{% endif %}</h1><div class="subtitle">{{ kit.sku }}</div></div>
+  </div>
+  <div class="stat-grid" style="min-width:340px;">
+    <div class="stat-tile"><div class="label">Total Part Cost</div><div class="value">${{ "%.2f"|format(total_cost) }}</div></div>
+    <div class="stat-tile"><div class="label">Margin</div><div class="value">{{ kit.margin_pct }}%</div></div>
+    <div class="stat-tile"><div class="label">Sell Price</div><div class="value">${{ "%.2f"|format(sell_price) }}</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Kit Details</h2>
+  <form method="post" action="{{ url_for('kits.edit', kit_id=kit.id) }}" enctype="multipart/form-data">
+    <div class="form-row"><div><label>Kit Name</label><input name="kit_name" value="{{ kit.kit_name }}" required></div><div><label>SKU</label><input name="sku" value="{{ kit.sku or '' }}"></div></div>
+    <label>Replace Kit Image</label><input type="file" name="kit_image" accept="image/*">
+    <div class="form-row">
+      <div><label>Category</label><select name="category_id"><option value="">—</option>{% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if kit.category_id==c.id }}>{{ c.name }}</option>{% endfor %}</select></div>
+      <div><label>Status</label><select name="status"><option {{ 'selected' if kit.status=='In Development' }}>In Development</option><option {{ 'selected' if kit.status=='Active' }}>Active</option><option {{ 'selected' if kit.status=='Discontinued' }}>Discontinued</option></select></div>
+    </div>
+    <div class="form-row">
+      <div><label>Screen Size</label><input name="screen_size" value="{{ kit.screen_size or '' }}"></div>
+      <div><label>Margin %</label><input type="number" step="0.01" name="margin_pct" value="{{ kit.margin_pct }}"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Project Name</label><input name="project_name" value="{{ kit.project_name or '' }}"></div>
+      <div><label>Primary CAD File Link</label><input name="primary_cad_file_link" value="{{ kit.primary_cad_file_link or '' }}"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Estimated Freight Allowance</label><input type="number" step="0.01" name="estimated_freight_allowance" value="{{ kit.estimated_freight_allowance or 0 }}"></div>
+      <div class="checkbox-row" style="margin-top:26px;"><input type="checkbox" name="freight_included_in_price" id="fip" {{ 'checked' if kit.freight_included_in_price }}><label for="fip" style="margin:0;">Freight Included In Price</label></div>
+    </div>
+    <div class="checkbox-row"><input type="checkbox" name="is_subassembly" id="is_subassembly" {{ 'checked' if kit.is_subassembly }}><label for="is_subassembly" style="margin:0;">Sub-Assembly (built internally, not sold directly — used as a BOM component on other Kits)</label></div>
+    <label>Description</label><textarea name="description">{{ kit.description or '' }}</textarea>
+    <button class="btn btn-accent" style="margin-top:12px;" type="submit">Save Changes</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Bill of Materials</h2>
+  <p class="subtitle">A BOM line can be a raw Part or another Kit acting as a sub-assembly — sub-assembly cost rolls up recursively into this kit's Total Part Cost above.</p>
+  <table class="data-table"><tr><th>Component</th><th>Type</th><th>Qty Required</th><th>Unit Cost</th><th>Line Cost</th><th></th></tr>
+  {% for line in bom %}
+  <tr>
+    <td>
+      {% if line.component_type == 'Part' %}<a class="row-link" href="{{ url_for('parts.detail', part_id=line.part_id) }}">{{ line.name }}</a>
+      {% else %}<a class="row-link" href="{{ url_for('kits.detail', kit_id=line.component_kit_id) }}">{{ line.name }}</a>{% endif %}
+      <span class="subtitle">{{ line.part_number or '' }}</span>
+    </td>
+    <td><span class="badge {{ 'accent' if line.component_type == 'Sub-Assembly' }}">{{ line.component_type }}</span></td>
+    <td>{{ line.quantity_required }}</td><td>${{ "%.2f"|format(line.unit_cost) }}</td><td>${{ "%.2f"|format(line.quantity_required * line.unit_cost) }}</td>
+    <td><form method="post" action="{{ url_for('kits.remove_bom_line', kit_id=kit.id, line_id=line.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">✕</button></form></td>
+  </tr>
+  {% else %}<tr><td colspan="6" class="empty-state">No BOM lines yet.</td></tr>{% endfor %}
+  </table>
+  <form method="post" action="{{ url_for('kits.add_bom_line', kit_id=kit.id) }}" class="form-row" style="margin-top:12px; align-items:flex-end;">
+    <div>
+      <label>Component Type</label>
+      <select id="bom-component-type" onchange="document.getElementById('bom-part-field').style.display = this.value==='part' ? '' : 'none'; document.getElementById('bom-kit-field').style.display = this.value==='kit' ? '' : 'none';">
+        <option value="part">Part</option>
+        <option value="kit">Sub-Assembly (another Kit)</option>
+      </select>
+    </div>
+    <div id="bom-part-field"><label>Part</label><select name="part_id">{% for p in parts %}<option value="{{ p.id }}">{{ p.part_name }} ({{ p.part_number }})</option>{% endfor %}</select></div>
+    <div id="bom-kit-field" style="display:none;"><label>Sub-Assembly Kit</label><select name="component_kit_id"><option value="">—</option>{% for k in available_subassemblies %}<option value="{{ k.id }}">{{ k.kit_name }}{% if k.is_subassembly %} (Sub-Assembly){% endif %}</option>{% endfor %}</select></div>
+    <div style="max-width:120px;"><label>Qty Required</label><input type="number" name="quantity_required" value="1" min="1"></div>
+    <div style="max-width:140px;"><button class="btn btn-accent" type="submit">Add to BOM</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Firmware Versions</h2>
+  <p class="subtitle">Every firmware build for this kit — link one to a Build below so each unit records exactly what it shipped with.</p>
+  <table class="data-table"><tr><th>Version</th><th>File</th><th>Released</th><th>Notes</th></tr>
+  {% for fv in firmware_versions %}
+  <tr>
+    <td>{{ fv.version_label }}</td>
+    <td>{% if fv.file_path %}<a href="/static/{{ fv.file_path }}">Download</a>{% else %}—{% endif %}</td>
+    <td class="subtitle">{{ fv.released_at }}</td>
+    <td class="subtitle">{{ fv.release_notes or '' }}</td>
+  </tr>
+  {% else %}<tr><td colspan="4" class="empty-state">No firmware versions logged yet.</td></tr>{% endfor %}
+  </table>
+  <form method="post" action="{{ url_for('kits.add_firmware', kit_id=kit.id) }}" enctype="multipart/form-data" class="form-row" style="margin-top:12px; align-items:flex-end;">
+    <div><label>Version Label</label><input name="version_label" placeholder="e.g. v1.3.2" required></div>
+    <div><label>Firmware File</label><input type="file" name="firmware_file"></div>
+    <div><label>Release Notes</label><input name="release_notes"></div>
+    <div style="max-width:160px;"><button class="btn btn-accent" type="submit">Add Version</button></div>
+  </form>
+
+  {% if firmware_versions|selectattr('file_path')|list %}
+  <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
+    <label>Flash to Device (via Local Agent) — for a bench unit not tied to a Build yet</label>
+    <select id="kit-flash-firmware-select">
+      <option value="">Choose a firmware version to flash…</option>
+      {% for fv in firmware_versions if fv.file_path %}
+      <option value="{{ fv.id }}" data-url="{{ request.host_url.rstrip('/') }}/static/{{ fv.file_path }}" data-label="{{ fv.version_label }}">{{ fv.version_label }}</option>
+      {% endfor %}
+    </select>
+    <div class="form-row" style="margin-top:8px; align-items:center;">
+      <button type="button" class="btn" onclick="mmoFlashToDevice({selectId:'kit-flash-firmware-select', statusId:'kit-flash-status'})">⚡ Flash to Device</button>
+      <span id="kit-flash-status" class="subtitle"></span>
+    </div>
+    <p class="subtitle">Requires the Local Agent running on this PC — see Administration &gt; Local Agent.</p>
+  </div>
+  {% endif %}
+</div>
+<script src="/static/js/flash_agent.js"></script>
+
+<div class="card">
+  <h2>Active Builds</h2>
+  <table class="data-table"><tr><th>Build</th><th>Client</th><th>Status</th><th>Start Date</th></tr>
+  {% for b in active_builds %}<tr><td><a class="row-link" href="{{ url_for('builds.detail', build_id=b.id) }}">{{ b.build_number }}</a></td><td>{{ b.client_name or '—' }}</td><td><span class="badge accent">{{ b.status }}</span></td><td>{{ b.start_date or '—' }}</td></tr>{% else %}<tr><td colspan="4" class="empty-state">No active builds.</td></tr>{% endfor %}
+  </table>
+  <form method="post" action="{{ url_for('kits.new_build', kit_id=kit.id) }}" class="form-row" style="margin-top:12px; align-items:flex-end;">
+    <div><label>Client (optional)</label><select name="client_id"><option value="">—</option>{% for c in clients %}<option value="{{ c.id }}">{{ c.client_name }}</option>{% endfor %}</select></div>
+    {% if firmware_versions %}
+    <div><label>Firmware Version (optional)</label><select name="firmware_version_id"><option value="">—</option>{% for fv in firmware_versions %}<option value="{{ fv.id }}">{{ fv.version_label }}</option>{% endfor %}</select></div>
+    {% endif %}
+    <div><button class="btn btn-accent" type="submit">+ Start New Build</button></div>
+  </form>
+  <p class="subtitle" style="margin-top:8px;">A serial number is generated automatically (Numbering: "Serial") when the build is created.</p>
+</div>
+
+<div class="card">
+  <h2>Routing / Operations</h2>
+  <p class="subtitle">The ordered assembly steps for this kit, with an estimated time each — Builds below log real time against these for true COGS (parts + labor).</p>
+  <table class="data-table"><tr><th>#</th><th>Step</th><th>Instructions</th><th>Est. Minutes</th><th></th></tr>
+  {% for step in routing_steps %}
+  <tr>
+    <td>{{ step.step_number }}</td><td>{{ step.step_name }}</td><td class="subtitle">{{ step.instructions or '' }}</td><td>{{ step.estimated_minutes }}</td>
+    <td><form method="post" action="{{ url_for('kits.remove_routing_step', kit_id=kit.id, step_id=step.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">✕</button></form></td>
+  </tr>
+  {% else %}<tr><td colspan="5" class="empty-state">No routing steps yet.</td></tr>{% endfor %}
+  </table>
+  <form method="post" action="{{ url_for('kits.add_routing_step', kit_id=kit.id) }}" class="form-row" style="margin-top:12px; align-items:flex-end;">
+    <div><label>Step Name</label><input name="step_name" required></div>
+    <div style="flex:2;"><label>Instructions</label><input name="instructions"></div>
+    <div style="max-width:140px;"><label>Est. Minutes</label><input type="number" step="0.1" name="estimated_minutes" value="0"></div>
+    <div><button class="btn btn-accent" type="submit">Add Step</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Engineering Change Orders</h2>
+  <p class="subtitle">File an ECO right after editing the BOM above to snapshot it — past revisions stay reconstructable even though the BOM itself only shows the current state.</p>
+  <table class="data-table"><tr><th>ECO #</th><th>Description</th><th>Filed</th></tr>
+  {% for eco in ecos %}
+  <tr><td>{{ eco.eco_number }}</td><td>{{ eco.description }}</td><td class="subtitle">{{ eco.created_at }}</td></tr>
+  {% else %}<tr><td colspan="3" class="empty-state">No ECOs filed yet.</td></tr>{% endfor %}
+  </table>
+  <form method="post" action="{{ url_for('kits.add_eco', kit_id=kit.id) }}" class="form-row" style="margin-top:12px; align-items:flex-end;">
+    <div style="flex:2;"><label>What changed and why</label><input name="description" required placeholder="e.g. Swapped M3x8 for M3x10 heat-set insert — old ones were stripping"></div>
+    <div><button class="btn btn-accent" type="submit">File ECO (Snapshot Current BOM)</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Archive — Completed Jobs</h2>
+  {% if archived_builds %}
+  {% for b in archived_builds %}
+  <a href="{{ url_for('builds.detail', build_id=b.id) }}" style="text-decoration:none; color:inherit;">
+    <div class="archive-row">
+      <div class="thumb"></div>
+      <div style="flex:1;"><strong>{{ b.build_number }}</strong> · {{ b.client_name or 'No client' }} · {{ kit.kit_name }}</div>
+      <div class="subtitle">{{ b.ship_date or '' }}</div>
+    </div>
+  </a>
+  {% endfor %}
+  {% else %}<div class="empty-state">No completed builds yet.</div>{% endif %}
+</div>
+{% endblock %}

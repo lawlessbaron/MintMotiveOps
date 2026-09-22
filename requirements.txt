@@ -1,0 +1,25 @@
+Flask==3.1.3
+Jinja2==3.1.6
+Werkzeug==3.1.8
+requests==2.33.1
+
+# PostgreSQL driver — only imported/used if you set a DATABASE_URL env var
+# (see POSTGRES_SETUP.md). If pip ever fails to find a wheel for this on an
+# unusual platform and you're not using Postgres, it's safe to delete this
+# line; everything else still runs fine on the default SQLite backend.
+psycopg2-binary>=2.9,<3
+
+# QR code image generation for Labels & Quick Links (part/kit label URLs
+# rendered as real scannable images). Needs internet access to install —
+# this couldn't be installed in the sandbox this app was built in, which is
+# why the app degrades gracefully and shows plain URLs instead if this
+# import fails. Safe to delete if you never plan to use QR labels.
+qrcode[pil]>=7.4,<8
+
+# Production WSGI servers — gunicorn only runs on Linux/macOS (it relies on
+# os.fork), so Windows servers (your Azure VM / rented VPS) need Waitress
+# instead. pip reads the platform_system marker and only installs the one
+# that matches the machine it's running on, so this one file works
+# everywhere without you needing to think about it.
+gunicorn==23.0.0 ; platform_system != "Windows"
+waitress>=3.0,<4 ; platform_system == "Windows"

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Analytics — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Analytics</h1></div>
+</div>
+<div class="tabs">
+  <a class="active" href="{{ url_for('analytics.index') }}">Analytics</a>
+  <a href="{{ url_for('analytics.reports') }}">Reports</a>
+</div>
+
+<div class="stat-grid">
+  <div class="stat-tile"><div class="label">Inventory Value (Cost)</div><div class="value">${{ '%.2f' % inventory_value }}</div></div>
+  <div class="stat-tile"><div class="label">Avg Build Cycle Time</div><div class="value">{{ avg_cycle_days if avg_cycle_days is not none else '—' }}{{ ' days' if avg_cycle_days is not none }}</div></div>
+  {% for o in outstanding_by_status %}
+  <div class="stat-tile"><div class="label">{{ o.status }} Invoices</div><div class="value">${{ '%.2f' % o.v }}<span style="font-size:13px; font-weight:400; color:var(--text-secondary);"> ({{ o.c }})</span></div></div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>Revenue by Month (Paid Invoices, last 6 months)</h2>
+  {% if revenue_by_month %}
+  {% for r in revenue_by_month %}
+  <div class="bar-row">
+    <div class="bar-label">{{ r.month or '—' }}</div>
+    <div class="bar-track"><div class="bar-fill" style="width:{{ (r.total / max_revenue * 100)|round(1) }}%;"></div></div>
+    <div class="bar-value">${{ '%.2f' % r.total }}</div>
+  </div>
+  {% endfor %}
+  {% else %}<div class="empty-state">No paid invoices yet.</div>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Top Kits by Revenue</h2>
+  {% if top_kits %}
+  {% for k in top_kits %}
+  <div class="bar-row">
+    <div class="bar-label">{{ k.kit_name }}</div>
+    <div class="bar-track"><div class="bar-fill" style="width:{{ (k.revenue / max_kit_revenue * 100)|round(1) }}%;"></div></div>
+    <div class="bar-value">${{ '%.2f' % k.revenue }}</div>
+  </div>
+  {% endfor %}
+  {% else %}<div class="empty-state">No kit sales recorded yet.</div>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Builds by Status</h2>
+  <table class="data-table">
+    <tr><th>Status</th><th>Count</th></tr>
+    {% for b in build_stats %}
+    <tr><td>{{ b.status }}</td><td>{{ b.c }}</td></tr>
+    {% else %}
+    <tr><td colspan="2" class="subtitle">No builds yet.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

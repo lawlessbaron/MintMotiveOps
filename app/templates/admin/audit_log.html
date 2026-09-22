@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Audit Log — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Administration</h1></div>
+<div class="tabs">
+  <a href="{{ url_for('admin.index') }}">Overview</a>
+  <a href="{{ url_for('admin.company') }}">Company</a>
+  <a href="{{ url_for('admin.duties_shipping') }}">Duties &amp; Shipping</a>
+  <a href="{{ url_for('admin.numbering') }}">Numbering</a>
+  <a href="{{ url_for('admin.integrations') }}">Integrations</a>
+  <a href="{{ url_for('admin.security') }}">Security</a>
+  <a href="{{ url_for('admin.appearance') }}">Appearance</a>
+  <a class="active" href="{{ url_for('admin.audit_log') }}">Audit Log</a>
+  <a href="{{ url_for('admin.local_agent') }}">Local Agent</a>
+</div>
+
+<div class="card">
+  <h2>Audit Log</h2>
+  <p class="subtitle">
+    Automatic, global tracking: every UPDATE and DELETE statement the app runs, on any table,
+    is captured at the database connection layer — not opt-in per screen. A handful of
+    high-noise internal tables (this log itself, and the background numbering counters) are
+    excluded so the log stays readable. Record ID is captured whenever a statement targets a
+    single row by id; broader statements still log the table, action and who was signed in,
+    with the record id left blank.
+  </p>
+  <form method="get" class="form-row" style="margin-bottom:14px; align-items:flex-end;">
+    <div>
+      <label>Filter by Table</label>
+      <select name="table" onchange="this.form.submit()">
+        <option value="">All tables</option>
+        {% for t in tables %}
+        <option value="{{ t.table_name }}" {{ 'selected' if table_filter==t.table_name }}>{{ t.table_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+  <table class="data-table">
+    <tr><th>When</th><th>Table</th><th>Record ID</th><th>Action</th><th>Changed By</th><th>Details</th></tr>
+    {% for log in logs %}
+    <tr>
+      <td class="subtitle">{{ log.changed_at }}</td>
+      <td>{{ log.table_name }}</td>
+      <td>{{ log.record_id }}</td>
+      <td><span class="badge {{ 'accent' if log.action=='UPDATE' }}">{{ log.action }}</span></td>
+      <td>{{ log.changed_by or '—' }}</td>
+      <td class="subtitle">{{ log.details or '' }}</td>
+    </tr>
+    {% else %}<tr><td colspan="6" class="empty-state">No audit log entries yet.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

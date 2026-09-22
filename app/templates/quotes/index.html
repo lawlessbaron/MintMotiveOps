@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Quotes — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1>Quotes</h1></div><a class="btn btn-accent" href="{{ url_for('quotes.new') }}">+ New Quote</a></div>
+<div class="card">
+  {% if quotes %}
+  <table class="data-table"><tr><th>Quote</th><th>Client</th><th>Date</th><th>Status</th><th>Total</th></tr>
+  {% for q in quotes %}
+  <tr><td><a class="row-link" href="{{ url_for('quotes.detail', quote_id=q.id) }}">{{ q.quote_number }}</a></td><td>{{ q.client_name }}</td><td>{{ q.quote_date }}</td><td><span class="badge">{{ q.status }}</span></td><td>${{ "%.2f"|format(totals[q.id].total) }}</td></tr>
+  {% endfor %}
+  </table>
+  {% else %}<div class="empty-state">No quotes yet.</div>{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Reports — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1>Analytics</h1></div></div>
+<div class="tabs">
+  <a href="{{ url_for('analytics.index') }}">Analytics</a>
+  <a class="active" href="{{ url_for('analytics.reports') }}">Reports</a>
+</div>
+
+<div class="card">
+  <h2>Downloadable Reports</h2>
+  <p class="subtitle">Real CSV exports, generated live from the current database — open directly in Excel/Numbers/Google Sheets.</p>
+  <table class="data-table">
+    <tr><th>Report</th><th>What it contains</th><th></th></tr>
+    <tr>
+      <td>Inventory Valuation</td>
+      <td class="subtitle">Every part's on-hand quantity × unit cost, highest value first.</td>
+      <td><a class="btn btn-accent btn-sm" href="{{ url_for('analytics.export_inventory_valuation') }}">Download CSV</a></td>
+    </tr>
+    <tr>
+      <td>Sales Orders</td>
+      <td class="subtitle">Every sales order with client, status, date, and total value.</td>
+      <td><a class="btn btn-accent btn-sm" href="{{ url_for('analytics.export_sales_orders') }}">Download CSV</a></td>
+    </tr>
+    <tr>
+      <td>Outstanding Invoices</td>
+      <td class="subtitle">Invoices currently Sent or Overdue, with total owing and due date.</td>
+      <td><a class="btn btn-accent btn-sm" href="{{ url_for('analytics.export_outstanding_invoices') }}">Download CSV</a></td>
+    </tr>
+  </table>
+</div>
+{% endblock %}

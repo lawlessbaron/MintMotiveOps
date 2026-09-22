@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}New Sales Order — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><h1>New Sales Order</h1></div>
+<div class="card" style="max-width:560px;">
+  <form method="post">
+    <label>Client *</label><select name="client_id" required>{% for c in clients %}<option value="{{ c.id }}">{{ c.client_name }}</option>{% endfor %}</select>
+    <label>Source</label><select name="source_id"><option value="">—</option>{% for s in sources %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select>
+    <label>Notes</label><textarea name="notes"></textarea>
+    <button class="btn btn-accent" style="margin-top:12px;" type="submit">Create Sales Order</button>
+  </form>
+</div>
+{% endblock %}

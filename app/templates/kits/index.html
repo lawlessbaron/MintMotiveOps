@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Kits & Builds — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Kits &amp; Builds</h1><div class="subtitle">Each kit's cost and price computed live from its bill of materials.</div></div>
+  <a class="btn btn-accent" href="{{ url_for('kits.new') }}">+ New Kit</a>
+</div>
+<div class="card">
+  {% if kits %}
+  <table class="data-table"><tr><th>Kit</th><th>SKU</th><th>Category</th><th>Status</th><th>Total Part Cost</th><th>Sell Price</th></tr>
+  {% for k in kits %}
+  <tr>
+    <td>{% if k.kit_image_path %}<img src="/static/{{ k.kit_image_path }}" style="width:28px;height:28px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px;">{% endif %}<a class="row-link" href="{{ url_for('kits.detail', kit_id=k.id) }}">{{ k.kit_name }}</a></td>
+    <td>{{ k.sku or '—' }}</td><td>{{ k.category_name or '—' }}</td>
+    <td><span class="badge {{ 'accent' if k.status=='Active' }}">{{ k.status }}</span></td>
+    <td>${{ "%.2f"|format(k.total_cost) }}</td><td>${{ "%.2f"|format(k.sell_price) }}</td>
+  </tr>
+  {% endfor %}
+  </table>
+  {% else %}<div class="empty-state">No kits yet.</div>{% endif %}
+</div>
+{% endblock %}

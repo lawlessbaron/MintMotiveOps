@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}RMAs — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>RMAs</h1>
+  <a class="btn btn-accent" href="{{ url_for('rmas.new') }}">+ New RMA</a>
+</div>
+<div class="card">
+  <table class="data-table">
+    <tr><th>RMA #</th><th>Build</th><th>Client</th><th>Reason</th><th>Status</th><th>Received</th></tr>
+    {% for r in rmas %}
+    <tr>
+      <td><a class="row-link" href="{{ url_for('rmas.detail', rma_id=r.id) }}">{{ r.rma_number }}</a></td>
+      <td>{{ r.build_number or '—' }}</td>
+      <td>{{ r.client_name or '—' }}</td>
+      <td class="subtitle">{{ r.reason or '' }}</td>
+      <td><span class="badge {{ 'accent' if r.status in ['Resolved','Closed'] }}">{{ r.status }}</span></td>
+      <td class="subtitle">{{ r.received_date }}</td>
+    </tr>
+    {% else %}<tr><td colspan="6" class="empty-state">No RMAs logged yet.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

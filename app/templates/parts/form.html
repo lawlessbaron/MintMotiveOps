@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}New Part — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><h1>New Part</h1></div>
+<div class="card" style="max-width:720px;">
+  <form method="post" enctype="multipart/form-data">
+    <div class="form-row">
+      <div><label>Part Name *</label><input name="part_name" required></div>
+      <div><label>Part Number (blank = auto-generate)</label><input name="part_number"></div>
+    </div>
+    <label>Product Image</label><input type="file" name="product_image" accept="image/*">
+    <div class="form-row">
+      <div><label>Category</label>
+        <select name="category_id"><option value="">—</option>{% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select>
+      </div>
+      <div><label>Preferred Supplier</label>
+        <select name="preferred_supplier_id"><option value="">—</option>{% for s in suppliers %}<option value="{{ s.id }}">{{ s.supplier_name }}</option>{% endfor %}</select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div><label>Quantity On Hand</label><input type="number" name="quantity_on_hand" value="0"></div>
+      <div><label>Reorder Threshold</label><input type="number" name="reorder_threshold" value="0"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Unit Cost ($)</label><input type="number" step="0.01" name="unit_cost" value="0"></div>
+      <div><label>Margin % (blank = category/company default)</label><input type="number" step="0.01" name="margin_pct"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Harmonised Code</label><select name="harmonised_code_id"><option value="">—</option>{% for h in harmonised_codes %}<option value="{{ h.id }}">{{ h.code }} — {{ h.description }}</option>{% endfor %}</select></div>
+      <div><label>Country of Origin</label><select name="country_of_origin_id"><option value="">—</option>{% for c in countries %}<option value="{{ c.id }}">{{ c.country_name }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="form-row">
+      <div><label>Weight (kg)</label><input type="number" step="0.01" name="weight_kg"></div>
+      <div><label>Length (cm)</label><input type="number" step="0.1" name="length_cm"></div>
+      <div><label>Width (cm)</label><input type="number" step="0.1" name="width_cm"></div>
+      <div><label>Height (cm)</label><input type="number" step="0.1" name="height_cm"></div>
+    </div>
+    <label>Bin Location</label>
+    <select name="bin_location_id"><option value="">—</option>{% for l in locations %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}</select>
+    <label>Notes</label><textarea name="notes"></textarea>
+    <button class="btn btn-accent" style="margin-top:14px;" type="submit">Create Part</button>
+  </form>
+</div>
+{% endblock %}

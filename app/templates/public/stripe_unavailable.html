@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Payment unavailable{% endblock %}
+{% block bare_content %}
+<style>body{ background:{{ company.light_page_bg }}; padding:40px 16px; } .wrap{max-width:520px;margin:0 auto;background:#fff;border-radius:14px;padding:28px;}</style>
+<div class="wrap">
+  <h2>Payment isn't available on this preview yet</h2>
+  <p>{{ error }}</p>
+  <p><a href="{{ url_for('public.view_invoice', token=token) }}">← Back to invoice</a></p>
+</div>
+{% endblock %}

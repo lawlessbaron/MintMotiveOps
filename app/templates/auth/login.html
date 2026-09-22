@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Log in — MintMotive Ops{% endblock %}
+{% block bare_content %}
+<style>
+  body { background: {{ company.light_page_bg }}; display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  .login-card { background: #fff; border-radius: 14px; padding: 36px; width: 340px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+  .login-card h1 { font-size: 20px; color: {{ company.light_text_primary }}; }
+  .login-card p.tag { color: {{ company.light_text_secondary }}; font-family:'Poppins',sans-serif; font-size:13px; margin-top:-8px; }
+</style>
+<div class="login-card">
+  <h1>MintMotive Ops</h1>
+  <p class="tag">Sign in to run the business.</p>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+  <form method="post">
+    <label>Email</label>
+    <input type="email" name="email" required autofocus>
+    <label>Password</label>
+    <input type="password" name="password" required>
+    <button class="btn btn-accent" type="submit" style="margin-top:16px; width:100%;">Log in</button>
+  </form>
+</div>
+{% endblock %}

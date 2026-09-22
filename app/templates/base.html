@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en" data-theme="{{ request.cookies.get('theme', 'light') }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}MintMotive Ops{% endblock %}</title>
+  <style>
+    @font-face { font-family: 'Helvetica'; src: url('/static/fonts/Helvetica-Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Helvetica'; src: url('/static/fonts/Helvetica-Bold.ttf') format('truetype'); font-weight: 700; font-style: normal; }
+    @font-face { font-family: 'Helvetica'; src: url('/static/fonts/Helvetica-Oblique.ttf') format('truetype'); font-weight: 400; font-style: italic; }
+    @font-face { font-family: 'Helvetica'; src: url('/static/fonts/Helvetica-BoldOblique.ttf') format('truetype'); font-weight: 700; font-style: italic; }
+    @font-face { font-family: 'Poppins'; src: url('/static/fonts/Poppins-Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Poppins'; src: url('/static/fonts/Poppins-Medium.ttf') format('truetype'); font-weight: 500; font-style: normal; }
+    @font-face { font-family: 'Poppins'; src: url('/static/fonts/Poppins-Bold.ttf') format('truetype'); font-weight: 700; font-style: normal; }
+
+    /* Theme tokens driven live by Company Settings (Administration > Appearance) */
+    :root {
+      --page-bg: {{ company.light_page_bg }};
+      --card-bg: {{ company.light_card_bg }};
+      --text-primary: {{ company.light_text_primary }};
+      --text-secondary: {{ company.light_text_secondary }};
+      --accent: {{ company.light_accent }};
+      --border: {{ company.light_border }};
+      --sidebar-bg: {{ company.light_sidebar_bg }};
+      --sidebar-text: {{ company.light_sidebar_text }};
+      --text-on-accent: {{ company.light_text_on_accent }};
+    }
+    html[data-theme="dark"] {
+      --page-bg: {{ company.dark_page_bg }};
+      --card-bg: {{ company.dark_card_bg }};
+      --text-primary: {{ company.dark_text_primary }};
+      --text-secondary: {{ company.dark_text_secondary }};
+      --accent: {{ company.dark_accent }};
+      --border: {{ company.dark_border }};
+      --sidebar-bg: {{ company.dark_sidebar_bg }};
+      --sidebar-text: {{ company.dark_sidebar_text }};
+      --text-on-accent: {{ company.dark_text_on_accent }};
+    }
+  </style>
+  <link rel="stylesheet" href="/static/css/app.css">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+{% if current_user %}
+<div class="app-shell">
+  {% include "_nav.html" %}
+  <div style="flex:1; display:flex; flex-direction:column; min-width:0;">
+    <div class="topbar">
+      <form class="search" action="{{ url_for('search.index') }}" method="get">
+        <input type="search" name="q" placeholder="Search parts, kits, clients, orders…" value="{{ request.args.get('q','') }}">
+      </form>
+      <div class="spacer"></div>
+      <button class="theme-toggle" id="themeToggle" type="button">🌓 Theme</button>
+      <span class="user-chip">{{ current_user.name }} · {{ current_user.role }}</span>
+      <a class="btn btn-sm" href="{{ url_for('auth.logout') }}">Log out</a>
+    </div>
+    <div class="content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+{% else %}
+  {% block bare_content %}{% endblock %}
+{% endif %}
+
+<script>
+(function () {
+  var html = document.documentElement;
+  var toggle = document.getElementById('themeToggle');
+  if (toggle) {
+    toggle.addEventListener('click', function () {
+      var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      document.cookie = 'theme=' + next + ';path=/;max-age=31536000';
+    });
+  }
+  document.querySelectorAll('.nav-group-toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      btn.closest('.nav-group').classList.toggle('open');
+      var openGroups = Array.from(document.querySelectorAll('.nav-group.open')).map(function(g){return g.dataset.group;});
+      localStorage.setItem('mm_open_groups', JSON.stringify(openGroups));
+    });
+  });
+})();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

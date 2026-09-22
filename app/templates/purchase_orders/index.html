@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Purchase Orders — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1>Purchase Orders</h1></div><a class="btn btn-accent" href="{{ url_for('purchase_orders.new') }}">+ New PO</a></div>
+<div class="card">
+  {% if pos %}
+  <table class="data-table"><tr><th>PO</th><th>Supplier</th><th>Date</th><th>Status</th><th>Duty</th></tr>
+  {% for po in pos %}
+  <tr><td><a class="row-link" href="{{ url_for('purchase_orders.detail', po_id=po.id) }}">{{ po.po_number }}</a></td><td>{{ po.supplier_name }}</td><td>{{ po.order_date }}</td><td><span class="badge">{{ po.status }}</span></td><td>{{ po.duty_payment_status }}</td></tr>
+  {% endfor %}
+  </table>
+  {% else %}<div class="empty-state">No purchase orders yet.</div>{% endif %}
+</div>
+{% endblock %}

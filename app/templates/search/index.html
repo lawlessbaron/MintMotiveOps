@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Search — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Search results for "{{ q }}"</h1></div>
+
+{% if not q %}
+<div class="card"><div class="empty-state">Type something into the search bar above — parts, kits, clients, suppliers, and every order/quote/invoice/build number are all searched at once.</div></div>
+{% elif total == 0 %}
+<div class="card"><div class="empty-state">No matches for "{{ q }}".</div></div>
+{% else %}
+
+{% if results.parts %}
+<div class="card"><h2>Parts</h2><table class="data-table"><tr><th>Name</th><th>Part #</th></tr>
+{% for r in results.parts %}<tr><td><a class="row-link" href="{{ url_for('parts.detail', part_id=r.id) }}">{{ r.part_name }}</a></td><td>{{ r.part_number or '—' }}</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+
+{% if results.kits %}
+<div class="card"><h2>Kits</h2><table class="data-table"><tr><th>Name</th><th>SKU</th></tr>
+{% for r in results.kits %}<tr><td><a class="row-link" href="{{ url_for('kits.detail', kit_id=r.id) }}">{{ r.kit_name }}</a></td><td>{{ r.sku or '—' }}</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+
+{% if results.clients %}
+<div class="card"><h2>Clients</h2><table class="data-table"><tr><th>Name</th><th>Email</th></tr>
+{% for r in results.clients %}<tr><td><a class="row-link" href="{{ url_for('clients.detail', client_id=r.id) }}">{{ r.client_name }}</a></td><td>{{ r.email or '—' }}</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+
+{% if results.suppliers %}
+<div class="card"><h2>Suppliers</h2><table class="data-table"><tr><th>Name</th><th>Code</th></tr>
+{% for r in results.suppliers %}<tr><td><a class="row-link" href="{{ url_for('suppliers.detail', supplier_id=r.id) }}">{{ r.supplier_name }}</a></td><td>{{ r.supplier_code or '—' }}</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+
+{% if results.sales_orders %}
+<div class="card"><h2>Sales Orders</h2><table class="data-table"><tr><th>Order #</th></tr>
+{% for r in results.sales_orders %}<tr><td><a class="row-link" href="{{ url_for('sales_orders.detail', order_id=r.id) }}">{{ r.order_number }}</a></td></tr>{% endfor %}
+</table></div>
+{% endif %}
+
+{% if results.quotes %}
+<div class="card"><h2>Quotes</h2><table class="data-table"><tr><th>Quote #</th></tr>
+{% for r in results.quotes %}<tr><td><a class="row-link" href="{{ url_for('quotes.detail', quote_id=r.id) }}">{{ r.quote_number }}</a></td></tr>{% endfor %}
+</table></div>
+{% endif %}
+
+{% if results.invoices %}
+<div class="card"><h2>Invoices</h2><table class="data-table"><tr><th>Invoice #</th></tr>
+{% for r in results.invoices %}<tr><td><a class="row-link" href="{{ url_for('invoices.detail', invoice_id=r.id) }}">{{ r.invoice_number }}</a></td></tr>{% endfor %}
+</table></div>
+{% endif %}
+
+{% if results.builds %}
+<div class="card"><h2>Builds</h2><table class="data-table"><tr><th>Build #</th><th>Serial #</th></tr>
+{% for r in results.builds %}<tr><td><a class="row-link" href="{{ url_for('builds.detail', build_id=r.id) }}">{{ r.build_number }}</a></td><td>{{ r.serial_number or '—' }}</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

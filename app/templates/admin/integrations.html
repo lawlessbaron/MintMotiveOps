@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Integrations — Administration{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Administration</h1></div>
+<div class="tabs">
+  <a href="{{ url_for('admin.index') }}">Overview</a>
+  <a href="{{ url_for('admin.company') }}">Company</a>
+  <a href="{{ url_for('admin.duties_shipping') }}">Duties &amp; Shipping</a>
+  <a href="{{ url_for('admin.numbering') }}">Numbering</a>
+  <a class="active" href="{{ url_for('admin.integrations') }}">Integrations</a>
+  <a href="{{ url_for('admin.security') }}">Security</a>
+  <a href="{{ url_for('admin.appearance') }}">Appearance</a>
+  <a href="{{ url_for('admin.audit_log') }}">Audit Log</a>
+  <a href="{{ url_for('admin.local_agent') }}">Local Agent</a>
+</div>
+
+{% for i in integrations %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h2 style="margin:0;">{{ i.integration_name }}</h2>
+    <span class="badge {{ 'accent' if i.status == 'Active' }}">{{ i.status }}</span>
+  </div>
+  <form method="post" action="{{ url_for('admin.integrations') }}" style="margin-top:12px;">
+    <input type="hidden" name="integration_name" value="{{ i.integration_name }}">
+    <label>Connection Reference {{ '(Shopify store domain / API key label)' if i.integration_name == 'Shopify' else '' }}</label>
+    <input name="connection_reference" value="{{ i.connection_reference or '' }}" placeholder="e.g. mintmotive.myshopify.com">
+    <button class="btn btn-accent btn-sm" style="margin-top:10px;" type="submit">Save Connection Reference</button>
+  </form>
+  <div class="form-row" style="margin-top:14px;">
+    <div><label>Last Sync</label><div>{{ i.last_sync_at or 'Never run' }}</div></div>
+  </div>
+  {% if i.last_sync_result %}
+  <label>Last Sync Result</label>
+  <p class="subtitle" style="margin-top:2px;">{{ i.last_sync_result }}</p>
+  {% endif %}
+  <form method="post" action="{{ url_for('admin.test_sync', name=i.integration_name) }}" style="margin-top:8px;">
+    <button class="btn btn-sm" type="submit">Test Sync</button>
+  </form>
+</div>
+{% else %}
+<div class="card"><p class="subtitle">No integrations configured yet.</p></div>
+{% endfor %}
+{% endblock %}

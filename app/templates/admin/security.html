@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Security — Administration{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Administration</h1></div>
+<div class="tabs">
+  <a href="{{ url_for('admin.index') }}">Overview</a>
+  <a href="{{ url_for('admin.company') }}">Company</a>
+  <a href="{{ url_for('admin.duties_shipping') }}">Duties &amp; Shipping</a>
+  <a href="{{ url_for('admin.numbering') }}">Numbering</a>
+  <a href="{{ url_for('admin.integrations') }}">Integrations</a>
+  <a class="active" href="{{ url_for('admin.security') }}">Security</a>
+  <a href="{{ url_for('admin.appearance') }}">Appearance</a>
+  <a href="{{ url_for('admin.audit_log') }}">Audit Log</a>
+  <a href="{{ url_for('admin.local_agent') }}">Local Agent</a>
+</div>
+
+<div class="card">
+  <h2>Users &amp; Roles</h2>
+  <p class="subtitle">Owner has full access across every module. Workshop is limited to day-to-day operational screens (Builds, Sourcing, Purchase Orders) and cannot change Administration settings.</p>
+  <table class="data-table">
+    <tr><th>Name</th><th>Email</th><th>Role</th><th>Created</th><th></th></tr>
+    {% for u in users %}
+    <tr>
+      <td style="font-weight:600;">{{ u.name }}</td>
+      <td>{{ u.email }}</td>
+      <td><span class="badge {{ 'accent' if u.role == 'Owner' }}">{{ u.role }}</span></td>
+      <td>{{ u.created_at }}</td>
+      <td><a href="#" onclick="toggleEditUser(event, {{ u.id }})">Edit</a></td>
+    </tr>
+    <tr id="edit-user-row-{{ u.id }}" style="display:none;">
+      <td colspan="5">
+        <form method="post" action="{{ url_for('admin.edit_user', user_id=u.id) }}">
+          <div class="form-row">
+            <div><label>Name</label><input name="name" value="{{ u.name }}" required></div>
+            <div><label>Email</label><input type="email" name="email" value="{{ u.email }}" required></div>
+            <div><label>Role</label><select name="role"><option value="Owner" {{ 'selected' if u.role=='Owner' }}>Owner</option><option value="Workshop" {{ 'selected' if u.role=='Workshop' }}>Workshop</option></select></div>
+            <div><label>New Password (optional)</label><input type="password" name="password" placeholder="Leave blank to keep current"></div>
+          </div>
+          <button class="btn btn-accent btn-sm" style="margin-top:8px;" type="submit">Save User</button>
+        </form>
+        <form method="post" action="{{ url_for('admin.delete_user', user_id=u.id) }}" style="margin-top:8px;" onsubmit="return confirm('Remove this user? They will lose access immediately.');">
+          <button class="btn btn-danger btn-sm" type="submit">Remove User</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="subtitle">No users yet.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h2>Add User</h2>
+  <form method="post" action="{{ url_for('admin.add_user') }}">
+    <div class="form-row">
+      <div><label>Name</label><input name="name" required></div>
+      <div><label>Email</label><input type="email" name="email" required></div>
+      <div><label>Role</label><select name="role"><option value="Workshop">Workshop</option><option value="Owner">Owner</option></select></div>
+      <div><label>Temporary Password</label><input type="password" name="password" placeholder="changeme123 if left blank"></div>
+    </div>
+    <button class="btn btn-accent" style="margin-top:10px;" type="submit">Add User</button>
+  </form>
+</div>
+
+<script>
+function toggleEditUser(e, id) {
+  e.preventDefault();
+  var row = document.getElementById('edit-user-row-' + id);
+  row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+}
+</script>
+{% endblock %}

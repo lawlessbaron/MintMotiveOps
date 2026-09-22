@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}{{ client.client_name }} — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>{{ client.client_name }}</h1><div class="subtitle">{{ client.company or 'Individual client' }}</div></div>
+  <span class="badge {{ 'accent' if client.status=='Active' }}">{{ client.status }}</span>
+</div>
+
+<div class="card">
+  <h2>Client Details</h2>
+  <form method="post" action="{{ url_for('clients.edit', client_id=client.id) }}">
+    <div class="form-row">
+      <div><label>Client Name</label><input name="client_name" value="{{ client.client_name }}" required></div>
+      <div><label>Company</label><input name="company" value="{{ client.company or '' }}"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Client Type</label>
+        <select name="client_type">
+          <option {{ 'selected' if client.client_type=='Individual' }}>Individual</option>
+          <option {{ 'selected' if client.client_type=='Business' }}>Business</option>
+        </select>
+      </div>
+      <div><label>Status</label>
+        <select name="status">
+          <option {{ 'selected' if client.status=='Active' }}>Active</option>
+          <option {{ 'selected' if client.status=='Inactive' }}>Inactive</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div><label>Email</label><input type="email" name="email" value="{{ client.email or '' }}"></div>
+      <div><label>Phone</label><input name="phone" value="{{ client.phone or '' }}"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Payment Terms</label>
+        <select name="payment_term_id">
+          {% for pt in payment_terms %}<option value="{{ pt.id }}" {{ 'selected' if client.payment_term_id==pt.id }}>{{ pt.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div><label>Client Since</label><input type="date" name="client_since" value="{{ client.client_since or '' }}"></div>
+    </div>
+    <label>Notes</label><textarea name="notes">{{ client.notes or '' }}</textarea>
+    <button class="btn btn-accent" style="margin-top:12px;" type="submit">Save Changes</button>
+  </form>
+</div>
+
+<div class="form-row">
+  <div class="card" style="flex:1; min-width:320px;">
+    <h2>Addresses</h2>
+    {% for a in addresses %}
+      <div style="border-bottom:1px solid var(--border); padding:8px 0;">
+        <strong>{{ a.address_label or 'Address' }}</strong>
+        {% if a.is_default_shipping %}<span class="badge accent">Default Shipping</span>{% endif %}
+        {% if a.is_default_billing %}<span class="badge">Default Billing</span>{% endif %}
+        <div style="font-size:13px; color:var(--text-secondary);">{{ a.address_line1 }}{% if a.address_line2 %}, {{ a.address_line2 }}{% endif %}<br>{{ a.city }} {{ a.state_region }} {{ a.postcode }}, {{ a.country_name }}</div>
+        <form method="post" action="{{ url_for('clients.delete_address', client_id=client.id, address_id=a.id) }}" style="display:inline;"><button class="btn btn-sm btn-danger" type="submit">Remove</button></form>
+      </div>
+    {% else %}<div class="empty-state">No addresses yet.</div>{% endfor %}
+    <details style="margin-top:12px;"><summary class="btn btn-sm" style="display:inline-block; cursor:pointer;">+ Add Address</summary>
+      <form method="post" action="{{ url_for('clients.add_address', client_id=client.id) }}" style="margin-top:10px;">
+        <label>Label</label><input name="address_label" placeholder="e.g. Shipping, HQ">
+        <label>Address Line 1</label><input name="address_line1">
+        <label>Address Line 2</label><input name="address_line2">
+        <div class="form-row">
+          <div><label>City</label><input name="city"></div>
+          <div><label>State/Region</label><input name="state_region"></div>
+          <div><label>Postcode</label><input name="postcode"></div>
+        </div>
+        <label>Country *</label>
+        <select name="country_id" required>{% for c in countries %}<option value="{{ c.id }}">{{ c.country_name }}</option>{% endfor %}</select>
+        <div class="checkbox-row"><input type="checkbox" name="is_default_shipping" id="dsh"><label for="dsh" style="margin:0;">Default Shipping</label></div>
+        <div class="checkbox-row"><input type="checkbox" name="is_default_billing" id="dbi"><label for="dbi" style="margin:0;">Default Billing</label></div>
+        <button class="btn btn-accent btn-sm" style="margin-top:10px;" type="submit">Add Address</button>
+      </form>
+    </details>
+  </div>
+
+  <div class="card" style="flex:1; min-width:320px;">
+    <h2>Contacts</h2>
+    {% for c in contacts %}
+      <div style="border-bottom:1px solid var(--border); padding:8px 0;">
+        <strong>{{ c.contact_name }}</strong> {% if c.is_primary_contact %}<span class="badge accent">Primary</span>{% endif %}
+        <div style="font-size:13px; color:var(--text-secondary);">{{ c.role_title or '' }} · {{ c.email or '' }} · {{ c.phone or '' }}</div>
+        <form method="post" action="{{ url_for('clients.delete_contact', client_id=client.id, contact_id=c.id) }}" style="display:inline;"><button class="btn btn-sm btn-danger" type="submit">Remove</button></form>
+      </div>
+    {% else %}<div class="empty-state">No contacts yet.</div>{% endfor %}
+    <details style="margin-top:12px;"><summary class="btn btn-sm" style="display:inline-block; cursor:pointer;">+ Add Contact</summary>
+      <form method="post" action="{{ url_for('clients.add_contact', client_id=client.id) }}" style="margin-top:10px;">
+        <label>Contact Name *</label><input name="contact_name" required>
+        <label>Role / Title</label><input name="role_title" placeholder="e.g. Purchasing, Site Contact">
+        <div class="form-row">
+          <div><label>Email</label><input type="email" name="email"></div>
+          <div><label>Phone</label><input name="phone"></div>
+        </div>
+        <div class="checkbox-row"><input type="checkbox" name="is_primary_contact" id="ipc"><label for="ipc" style="margin:0;">Primary Contact</label></div>
+        <button class="btn btn-accent btn-sm" style="margin-top:10px;" type="submit">Add Contact</button>
+      </form>
+    </details>
+  </div>
+</div>
+
+<div class="card">
+  <h2>History</h2>
+  <div class="tabs">
+    <a href="#so" class="active" onclick="showTab(event,'so')">Sales Orders ({{ sales_orders|length }})</a>
+    <a href="#qt" onclick="showTab(event,'qt')">Quotes ({{ quotes|length }})</a>
+    <a href="#inv" onclick="showTab(event,'inv')">Invoices ({{ invoices|length }})</a>
+  </div>
+  <div id="so">
+    <table class="data-table"><tr><th>Order</th><th>Date</th><th>Status</th></tr>
+    {% for o in sales_orders %}<tr><td><a class="row-link" href="{{ url_for('sales_orders.detail', order_id=o.id) }}">{{ o.order_number }}</a></td><td>{{ o.order_date }}</td><td><span class="badge">{{ o.status }}</span></td></tr>{% else %}<tr><td colspan="3" class="empty-state">None yet.</td></tr>{% endfor %}
+    </table>
+  </div>
+  <div id="qt" style="display:none;">
+    <table class="data-table"><tr><th>Quote</th><th>Date</th><th>Status</th></tr>
+    {% for o in quotes %}<tr><td><a class="row-link" href="{{ url_for('quotes.detail', quote_id=o.id) }}">{{ o.quote_number }}</a></td><td>{{ o.quote_date }}</td><td><span class="badge">{{ o.status }}</span></td></tr>{% else %}<tr><td colspan="3" class="empty-state">None yet.</td></tr>{% endfor %}
+    </table>
+  </div>
+  <div id="inv" style="display:none;">
+    <table class="data-table"><tr><th>Invoice</th><th>Date</th><th>Status</th></tr>
+    {% for o in invoices %}<tr><td><a class="row-link" href="{{ url_for('invoices.detail', invoice_id=o.id) }}">{{ o.invoice_number }}</a></td><td>{{ o.invoice_date }}</td><td><span class="badge">{{ o.status }}</span></td></tr>{% else %}<tr><td colspan="3" class="empty-state">None yet.</td></tr>{% endfor %}
+    </table>
+  </div>
+</div>
+<script>
+function showTab(e, id) {
+  e.preventDefault();
+  document.querySelectorAll('#so,#qt,#inv').forEach(function(el){ el.style.display='none'; });
+  document.getElementById(id).style.display='';
+  e.target.parentElement.querySelectorAll('a').forEach(function(a){a.classList.remove('active');});
+  e.target.classList.add('active');
+}
+</script>
+{% endblock %}

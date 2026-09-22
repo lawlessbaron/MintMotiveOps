@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}CapEx Calculator — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><h1>CapEx Break-Even Calculator</h1></div>
+
+<div class="card" style="max-width:640px;">
+  <h2>New Scenario</h2>
+  <form method="post">
+    <label>Scenario Name</label>
+    <input name="scenario_name" placeholder="e.g. Second Bambu X1C">
+    <div class="form-row">
+      <div><label>Equipment Cost ($)</label><input type="number" step="0.01" name="equipment_cost" required></div>
+    </div>
+    <div class="form-row">
+      <div><label>Projected Monthly Revenue Increase ($)</label><input type="number" step="0.01" name="monthly_revenue_increase" required></div>
+      <div><label>Projected Monthly Cost Increase ($)</label><input type="number" step="0.01" name="monthly_cost_increase" value="0"></div>
+    </div>
+    <label>Notes</label>
+    <textarea name="notes"></textarea>
+    <button class="btn btn-accent" style="margin-top:12px;" type="submit">Save Scenario</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Scenarios</h2>
+  <table class="data-table">
+    <tr><th>Scenario</th><th>Equipment Cost</th><th>Net Monthly Impact</th><th>Break-Even</th><th></th></tr>
+    {% for s in scenarios %}
+    <tr>
+      <td>{{ s.scenario_name }} <span class="subtitle">{{ s.notes or '' }}</span></td>
+      <td>${{ "%.2f"|format(s.equipment_cost) }}</td>
+      <td>${{ "%.2f"|format(s.monthly_revenue_increase - s.monthly_cost_increase) }}/mo</td>
+      <td>
+        {% if s.breakeven_months %}
+          <span class="badge accent">{{ s.breakeven_months }} months</span>
+        {% else %}
+          <span class="subtitle">Never (net monthly impact ≤ 0)</span>
+        {% endif %}
+      </td>
+      <td><form method="post" action="{{ url_for('financial.delete_capex', scenario_id=s.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">✕</button></form></td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="empty-state">No scenarios saved yet.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

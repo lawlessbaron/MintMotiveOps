@@ -1,0 +1,40 @@
+{# Shared branded document preview for Quotes and Invoices — the same
+   rendering used here should back PDF export / the public pay page, so
+   what's seen while editing is exactly what the client receives. #}
+<div class="invoice-preview">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+    <div>
+      <div class="doc-title">{{ doc_label }}</div>
+      <div style="font-size:13px; color:#494949;">{{ doc.quote_number if doc_type=='quote' else doc.invoice_number }}</div>
+    </div>
+    <div style="text-align:right; font-size:12.5px;">
+      <strong>{{ company.company_name }}</strong><br>
+      {% if show_abn %}ABN: {{ company.abn or '—' }}<br>{% endif %}
+      {{ company.address or '' }}
+    </div>
+  </div>
+  <hr style="margin:16px 0; border:none; border-top:1px solid #e5e5e5;">
+  <div style="display:flex; justify-content:space-between; font-size:13px;">
+    <div><strong>Bill To</strong><br>{{ doc.client_name }}{% if doc.client_email %}<br>{{ doc.client_email }}{% endif %}</div>
+    <div style="text-align:right;">
+      <strong>Date:</strong> {{ doc.quote_date if doc_type=='quote' else doc.invoice_date }}<br>
+      {% if doc_type=='quote' %}<strong>Expires:</strong> {{ doc.expiry_date or '—' }}{% else %}<strong>Due:</strong> {{ doc.due_date or '—' }}{% endif %}
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Item</th><th>Qty</th><th>Unit Price</th><th style="text-align:right;">Line Total</th></tr>
+    {% for l in lines %}
+    <tr><td>{{ l.kit_name or l.part_name or l.description }}</td><td>{{ l.quantity }}</td><td>${{ "%.2f"|format(l.unit_price) }}</td><td style="text-align:right;">${{ "%.2f"|format(l.quantity * l.unit_price) }}</td></tr>
+    {% endfor %}
+  </table>
+
+  <div class="totals">
+    <div><span>Subtotal</span><span>${{ "%.2f"|format(totals.subtotal) }}</span></div>
+    {% if totals.freight %}<div><span>Freight</span><span>${{ "%.2f"|format(totals.freight) }}</span></div>{% endif %}
+    {% if totals.duty %}<div><span>Duty</span><span>${{ "%.2f"|format(totals.duty) }}</span></div>{% endif %}
+    {% if totals.gst_amount > 0 %}<div><span>GST</span><span>${{ "%.2f"|format(totals.gst_amount) }}</span></div>{% endif %}
+    <div class="grand"><span>Total ({{ totals.currency }})</span><span>${{ "%.2f"|format(totals.total) }}</span></div>
+  </div>
+  {% if doc.notes %}<div style="margin-top:20px; font-size:12.5px; color:#494949;"><strong>Notes</strong><br>{{ doc.notes }}</div>{% endif %}
+</div>

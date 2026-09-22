@@ -1,0 +1,10 @@
+{
+  "mintmotive_url": "http://192.168.1.50:5000",
+  "api_key": "paste-the-key-from-administration-local-agent-here",
+  "avrdude_path": "avrdude",
+  "programmer": "arduino",
+  "mcu": "atmega328p",
+  "baud_rate": 115200,
+  "port_override": null,
+  "power_poll_interval_seconds": 30
+}

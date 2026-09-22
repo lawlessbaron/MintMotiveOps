@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Invoices — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1>Invoices</h1></div><a class="btn btn-accent" href="{{ url_for('invoices.new') }}">+ New Invoice</a></div>
+<div class="card">
+  {% if invoices %}
+  <table class="data-table"><tr><th>Invoice</th><th>Client</th><th>Date</th><th>Status</th><th>Total</th></tr>
+  {% for i in invoices %}
+  <tr><td><a class="row-link" href="{{ url_for('invoices.detail', invoice_id=i.id) }}">{{ i.invoice_number }}</a></td><td>{{ i.client_name }}</td><td>{{ i.invoice_date }}</td><td><span class="badge {{ 'accent' if i.status=='Paid' }}">{{ i.status }}</span></td><td>${{ "%.2f"|format(totals[i.id].total) }}</td></tr>
+  {% endfor %}
+  </table>
+  {% else %}<div class="empty-state">No invoices yet.</div>{% endif %}
+</div>
+{% endblock %}

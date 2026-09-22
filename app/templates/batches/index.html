@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Batch Runs — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Batch Production Runs</h1>
+  <a class="btn btn-accent" href="{{ url_for('batches.new') }}">+ New Batch</a>
+</div>
+<div class="card">
+  <table class="data-table">
+    <tr><th>Batch #</th><th>Kit</th><th>Quantity</th><th>Builds</th><th>Status</th></tr>
+    {% for b in batches %}
+    <tr>
+      <td><a class="row-link" href="{{ url_for('batches.detail', batch_id=b.id) }}">{{ b.batch_number }}</a></td>
+      <td>{{ b.kit_name }}</td>
+      <td>{{ b.quantity }}</td>
+      <td>{{ b.build_count }} / {{ b.quantity }}</td>
+      <td><span class="badge {{ 'accent' if b.status=='Complete' }}">{{ b.status }}</span></td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="empty-state">No batch runs yet.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

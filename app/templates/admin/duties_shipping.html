@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Duties & Shipping — Administration{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Administration</h1></div>
+<div class="tabs">
+  <a href="{{ url_for('admin.index') }}">Overview</a>
+  <a href="{{ url_for('admin.company') }}">Company</a>
+  <a class="active" href="{{ url_for('admin.duties_shipping') }}">Duties &amp; Shipping</a>
+  <a href="{{ url_for('admin.numbering') }}">Numbering</a>
+  <a href="{{ url_for('admin.integrations') }}">Integrations</a>
+  <a href="{{ url_for('admin.security') }}">Security</a>
+  <a href="{{ url_for('admin.appearance') }}">Appearance</a>
+  <a href="{{ url_for('admin.audit_log') }}">Audit Log</a>
+  <a href="{{ url_for('admin.local_agent') }}">Local Agent</a>
+</div>
+<div class="card">
+  <p class="subtitle">Choose a list, search by picking from its dropdown, then edit the selected operational option — or add a new one.</p>
+  <div class="tabs" id="dsTabs">
+    <a href="#countries" class="active" onclick="showDs(event,'countries')">Countries</a>
+    <a href="#hscodes" onclick="showDs(event,'hscodes')">Harmonised Codes</a>
+    <a href="#agents" onclick="showDs(event,'agents')">Customs Agents</a>
+    <a href="#carriers" onclick="showDs(event,'carriers')">Shipping Carriers</a>
+    <a href="#rates" onclick="showDs(event,'rates')">Shipping Rates</a>
+  </div>
+
+  <div id="panel-countries" class="ds-panel">
+    <label>Select Country</label>
+    <select onchange="loadDs('countries', this.value, {{ countries|tojson }})">
+      <option value="">— Add new country —</option>
+      {% for c in countries %}<option value="{{ c.id }}">{{ c.country_name }}</option>{% endfor %}
+    </select>
+    <form method="post" action="{{ url_for('admin.save_country') }}" id="ds-form-countries" style="margin-top:12px;">
+      <input type="hidden" name="id" id="countries-id">
+      <div class="form-row">
+        <div><label>Country Name</label><input name="country_name" id="countries-country_name" required></div>
+        <div><label>ISO Code</label><input name="iso_code" id="countries-iso_code"></div>
+        <div><label>Default Import Duty %</label><input type="number" step="0.01" name="default_import_duty_rate_pct" id="countries-default_import_duty_rate_pct"></div>
+      </div>
+      <label>GST/Tax Note</label><input name="gst_tax_note" id="countries-gst_tax_note">
+      <div class="checkbox-row"><input type="checkbox" name="active" id="countries-active" checked><label style="margin:0;">Active</label></div>
+      <button class="btn btn-accent btn-sm" style="margin-top:10px;" type="submit">Save Country</button>
+    </form>
+  </div>
+
+  <div id="panel-hscodes" class="ds-panel" style="display:none;">
+    <label>Select Harmonised Code</label>
+    <select onchange="loadDs('hscodes', this.value, {{ hs_codes|tojson }})">
+      <option value="">— Add new code —</option>
+      {% for h in hs_codes %}<option value="{{ h.id }}">{{ h.code }} — {{ h.description }}</option>{% endfor %}
+    </select>
+    <form method="post" action="{{ url_for('admin.save_hs_code') }}" id="ds-form-hscodes" style="margin-top:12px;">
+      <input type="hidden" name="id" id="hscodes-id">
+      <div class="form-row">
+        <div><label>Code</label><input name="code" id="hscodes-code" required></div>
+        <div><label>Default Duty %</label><input type="number" step="0.01" name="default_duty_rate_pct" id="hscodes-default_duty_rate_pct"></div>
+      </div>
+      <label>Description</label><input name="description" id="hscodes-description">
+      <label>Notes</label><textarea name="notes" id="hscodes-notes"></textarea>
+      <button class="btn btn-accent btn-sm" style="margin-top:10px;" type="submit">Save Harmonised Code</button>
+    </form>
+  </div>
+
+  <div id="panel-agents" class="ds-panel" style="display:none;">
+    <label>Select Customs Agent</label>
+    <select onchange="loadDs('agents', this.value, {{ agents|tojson }})">
+      <option value="">— Add new agent —</option>
+      {% for a in agents %}<option value="{{ a.id }}">{{ a.agent_name }}</option>{% endfor %}
+    </select>
+    <form method="post" action="{{ url_for('admin.save_agent') }}" id="ds-form-agents" style="margin-top:12px;">
+      <input type="hidden" name="id" id="agents-id">
+      <div class="form-row">
+        <div><label>Agent Name</label><input name="agent_name" id="agents-agent_name" required></div>
+        <div><label>Company</label><input name="company" id="agents-company"></div>
+      </div>
+      <div class="form-row">
+        <div><label>Contact Email</label><input name="contact_email" id="agents-contact_email"></div>
+        <div><label>Contact Phone</label><input name="contact_phone" id="agents-contact_phone"></div>
+      </div>
+      <label>Services</label><input name="services" id="agents-services">
+      <label>Notes</label><textarea name="notes" id="agents-notes"></textarea>
+      <button class="btn btn-accent btn-sm" style="margin-top:10px;" type="submit">Save Customs Agent</button>
+    </form>
+  </div>
+
+  <div id="panel-carriers" class="ds-panel" style="display:none;">
+    <label>Select Shipping Carrier</label>
+    <select onchange="loadDs('carriers', this.value, {{ carriers|tojson }})">
+      <option value="">— Add new carrier —</option>
+      {% for c in carriers %}<option value="{{ c.id }}">{{ c.carrier_name }}</option>{% endfor %}
+    </select>
+    <form method="post" action="{{ url_for('admin.save_carrier') }}" id="ds-form-carriers" style="margin-top:12px;">
+      <input type="hidden" name="id" id="carriers-id">
+      <div class="form-row">
+        <div><label>Carrier Name</label><input name="carrier_name" id="carriers-carrier_name" required></div>
+        <div><label>Account Reference</label><input name="account_reference" id="carriers-account_reference"></div>
+      </div>
+      <label>Notes</label><textarea name="notes" id="carriers-notes"></textarea>
+      <button class="btn btn-accent btn-sm" style="margin-top:10px;" type="submit">Save Carrier</button>
+    </form>
+  </div>
+
+  <div id="panel-rates" class="ds-panel" style="display:none;">
+    <label>Select Shipping Rate</label>
+    <select onchange="loadDs('rates', this.value, {{ rates|tojson }})">
+      <option value="">— Add new rate —</option>
+      {% for r in rates %}<option value="{{ r.id }}">{{ r.carrier_name }} → {{ r.country_name }} ({{ r.service_level or 'Standard' }})</option>{% endfor %}
+    </select>
+    <form method="post" action="{{ url_for('admin.save_rate') }}" id="ds-form-rates" style="margin-top:12px;">
+      <input type="hidden" name="id" id="rates-id">
+      <div class="form-row">
+        <div><label>Carrier</label><select name="carrier_id" id="rates-carrier_id">{% for c in carriers %}<option value="{{ c.id }}">{{ c.carrier_name }}</option>{% endfor %}</select></div>
+        <div><label>Destination Country</label><select name="destination_country_id" id="rates-destination_country_id">{% for c in countries %}<option value="{{ c.id }}">{{ c.country_name }}</option>{% endfor %}</select></div>
+        <div><label>Service Level</label><input name="service_level" id="rates-service_level"></div>
+      </div>
+      <div class="form-row">
+        <div><label>Base Fee</label><input type="number" step="0.01" name="base_fee" id="rates-base_fee"></div>
+        <div><label>Fee Per Kg</label><input type="number" step="0.01" name="fee_per_kg" id="rates-fee_per_kg"></div>
+        <div><label>Estimated Transit Days</label><input type="number" name="estimated_transit_days" id="rates-estimated_transit_days"></div>
+      </div>
+      <button class="btn btn-accent btn-sm" style="margin-top:10px;" type="submit">Save Shipping Rate</button>
+    </form>
+  </div>
+</div>
+
+<script>
+function showDs(e, key) {
+  e.preventDefault();
+  document.querySelectorAll('.ds-panel').forEach(function(p){ p.style.display='none'; });
+  document.getElementById('panel-' + key).style.display = 'block';
+  document.querySelectorAll('#dsTabs a').forEach(function(a){ a.classList.remove('active'); });
+  e.target.classList.add('active');
+}
+function loadDs(key, id, items) {
+  var item = items.find(function(i){ return String(i.id) === String(id); }) || {};
+  document.getElementById(key + '-id').value = item.id || '';
+  Object.keys(item).forEach(function(field){
+    var el = document.getElementById(key + '-' + field);
+    if (el) { if (el.type === 'checkbox') { el.checked = !!item[field]; } else { el.value = item[field] == null ? '' : item[field]; } }
+  });
+  if (!id) {
+    document.querySelectorAll('#panel-' + key + ' input[type=text], #panel-' + key + ' input:not([type=hidden]):not([type=checkbox])').forEach(function(el){
+      if (el.id !== key + '-id') el.value = '';
+    });
+  }
+}
+</script>
+{% endblock %}

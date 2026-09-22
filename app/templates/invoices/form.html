@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}New Invoice — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><h1>New Invoice</h1></div>
+<div class="card" style="max-width:480px;">
+  <form method="post">
+    <label>Client *</label><select name="client_id" required>{% for c in clients %}<option value="{{ c.id }}">{{ c.client_name }}</option>{% endfor %}</select>
+    <button class="btn btn-accent" style="margin-top:12px;" type="submit">Create Invoice</button>
+  </form>
+</div>
+{% endblock %}

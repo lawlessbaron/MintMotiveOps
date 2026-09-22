@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Suppliers — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Suppliers</h1></div>
+  <a class="btn btn-accent" href="{{ url_for('suppliers.new') }}">+ New Supplier</a>
+</div>
+<div class="card"><form method="get"><input type="search" name="q" placeholder="Search name or code…" value="{{ q }}"></form></div>
+<div class="card">
+  {% if suppliers %}
+  <table class="data-table"><tr><th>Name</th><th>Code</th><th>Contact</th><th>Status</th><th>Reliability (avg days late)</th></tr>
+  {% for s in suppliers %}
+  <tr>
+    <td><a class="row-link" href="{{ url_for('suppliers.detail', supplier_id=s.id) }}">{{ s.supplier_name }}</a></td>
+    <td>{{ s.supplier_code or '—' }}</td><td>{{ s.contact_name or '—' }}</td>
+    <td><span class="badge {{ 'accent' if s.status=='Active' }}">{{ s.status }}</span></td>
+    <td>
+      {% if reliability.get(s.id) %}
+        <span style="{{ 'color:#b3261e; font-weight:600;' if reliability[s.id].avg_days_late > 0 }}">{{ reliability[s.id].avg_days_late }} days</span>
+        <span class="subtitle">({{ reliability[s.id].po_count }} PO{{ 's' if reliability[s.id].po_count != 1 }})</span>
+      {% else %}<span class="subtitle">No data yet</span>{% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </table>
+  {% else %}<div class="empty-state">No suppliers yet.</div>{% endif %}
+</div>
+{% endblock %}

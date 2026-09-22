@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ asset.asset_name }} — Assets{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>{{ asset.asset_name }}</h1><div class="subtitle"><span class="badge {{ 'accent' if asset.status=='In Service' }}">{{ asset.status }}</span></div></div>
+  <a class="btn" href="{{ url_for('assets.index') }}">← Back to Assets</a>
+</div>
+<div class="card">
+  <form method="post" action="{{ url_for('assets.edit', asset_id=asset.id) }}">
+    <div class="form-row">
+      <div><label>Asset Name</label><input name="asset_name" value="{{ asset.asset_name }}" required></div>
+      <div><label>Asset Type</label><select name="asset_type_id"><option value="">—</option>{% for t in asset_types %}<option value="{{ t.id }}" {{ 'selected' if asset.asset_type_id==t.id }}>{{ t.name }}</option>{% endfor %}</select></div>
+      <div><label>Serial Number</label><input name="serial_number" value="{{ asset.serial_number or '' }}"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Purchase Date</label><input type="date" name="purchase_date" value="{{ asset.purchase_date or '' }}"></div>
+      <div><label>Purchase Cost</label><input type="number" step="0.01" name="purchase_cost" value="{{ asset.purchase_cost or '' }}"></div>
+      <div><label>Location</label><select name="location_id"><option value="">—</option>{% for l in locations %}<option value="{{ l.id }}" {{ 'selected' if asset.location_id==l.id }}>{{ l.name }}</option>{% endfor %}</select></div>
+      <div><label>Status</label><select name="status">
+        <option {{ 'selected' if asset.status=='In Service' }}>In Service</option>
+        <option {{ 'selected' if asset.status=='Under Maintenance' }}>Under Maintenance</option>
+        <option {{ 'selected' if asset.status=='Retired' }}>Retired</option>
+      </select></div>
+    </div>
+    <div class="form-row">
+      <div><label>Power Plug Reference (optional)</label><input name="power_plug_reference" value="{{ asset.power_plug_reference or '' }}" placeholder="e.g. 192.168.1.42 or shelly-printer-1"></div>
+    </div>
+    <p class="subtitle" style="margin-top:-6px;">If this asset is on a monitored smart plug, the Local Agent uses this (its LAN IP or hostname) to poll and report wattage — see Administration &gt; Local Agent.</p>
+    <label>Maintenance Notes</label><textarea name="maintenance_notes">{{ asset.maintenance_notes or '' }}</textarea>
+    <button class="btn btn-accent" style="margin-top:12px;" type="submit">Save Changes</button>
+  </form>
+</div>
+
+{% if asset.power_plug_reference %}
+<div class="card">
+  <h2>Power Monitoring</h2>
+  {% if latest_watts is not none %}
+  <div class="stat-grid" style="margin-bottom:14px;">
+    <div class="stat-tile"><div class="label">Latest Reading</div><div class="value">{{ "%.1f"|format(latest_watts) }} W</div></div>
+    <div class="stat-tile"><div class="label">Readings Logged</div><div class="value">{{ power_readings|length }}</div></div>
+  </div>
+  {% else %}
+  <p class="subtitle">No readings yet — the Local Agent reports these automatically once it's running and polling this plug reference.</p>
+  {% endif %}
+  <table class="data-table">
+    <tr><th>When</th><th>Watts</th></tr>
+    {% for r in power_readings %}
+    <tr><td class="subtitle">{{ r.recorded_at }}</td><td>{{ "%.1f"|format(r.watts) }} W</td></tr>
+    {% else %}<tr><td colspan="2" class="empty-state">No readings yet.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endif %}
+{% endblock %}

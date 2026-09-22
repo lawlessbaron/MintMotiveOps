@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}{{ doc.quote_number }} — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>{{ doc.quote_number }}</h1><div class="subtitle">{{ doc.client_name }}</div></div>
+  <div style="display:flex; gap:8px;">
+    <span class="badge accent">{{ doc.status }}</span>
+    <form method="post" action="{{ url_for('quotes.convert_to_invoice', quote_id=doc.id) }}" onsubmit="return confirm('Convert this quote to an invoice?');">
+      <button class="btn btn-accent btn-sm" type="submit">Convert to Invoice</button>
+    </form>
+  </div>
+</div>
+
+<div class="doc-split">
+  <div class="editor">
+    <div class="card">
+      <h2>Edit</h2>
+      <form method="post" action="{{ url_for('quotes.edit', quote_id=doc.id) }}">
+        <div class="form-row">
+          <div><label>Status</label><select name="status">{% for s in ['Draft','Sent','Accepted','Declined','Expired'] %}<option {{ 'selected' if doc.status==s }}>{{ s }}</option>{% endfor %}</select></div>
+          <div><label>Expiry Date</label><input type="date" name="expiry_date" value="{{ doc.expiry_date or '' }}"></div>
+        </div>
+        <div class="form-row">
+          <div><label>Payment Terms</label><select name="payment_term_id">{% for pt in payment_terms %}<option value="{{ pt.id }}" {{ 'selected' if doc.payment_term_id==pt.id }}>{{ pt.name }}</option>{% endfor %}</select></div>
+          <div><label>Destination Country</label><select name="destination_country_id"><option value="">—</option>{% for c in countries %}<option value="{{ c.id }}" {{ 'selected' if doc.destination_country_id==c.id }}>{{ c.country_name }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="form-row">
+          <div><label>Shipping/Duty Terms</label><select name="shipping_duty_terms">{% for t in ['Domestic','Free Freight Included','Freight Charged Separately','DDP','DAP'] %}<option {{ 'selected' if doc.shipping_duty_terms==t }}>{{ t }}</option>{% endfor %}</select></div>
+          <div><label>Display Currency</label><select name="display_currency"><option {{ 'selected' if doc.display_currency=='AUD' }}>AUD</option><option {{ 'selected' if doc.display_currency=='USD' }}>USD</option><option {{ 'selected' if doc.display_currency=='EUR' }}>EUR</option><option {{ 'selected' if doc.display_currency=='Other' }}>Other</option></select></div>
+        </div>
+        <div class="form-row">
+          <div><label>Exchange Rate (to AUD)</label><input type="number" step="0.0001" name="exchange_rate" value="{{ doc.exchange_rate }}"></div>
+          <div><label>Estimated Freight</label><input type="number" step="0.01" name="estimated_freight" value="{{ doc.estimated_freight or 0 }}"></div>
+          <div><label>Estimated Duty</label><input type="number" step="0.01" name="estimated_duty" value="{{ doc.estimated_duty or 0 }}"></div>
+        </div>
+        <label>Notes</label><textarea name="notes">{{ doc.notes or '' }}</textarea>
+        <button class="btn btn-accent" style="margin-top:12px;" type="submit">Save &amp; Refresh Preview</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3>Line Items</h3>
+      <table class="data-table line-items-grid"><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th><th></th></tr>
+      {% for l in lines %}
+      <tr><td>{{ l.kit_name or l.part_name or l.description }}</td><td>{{ l.quantity }}</td><td>${{ "%.2f"|format(l.unit_price) }}</td><td>${{ "%.2f"|format(l.quantity*l.unit_price) }}</td>
+        <td><form method="post" action="{{ url_for('quotes.remove_line', quote_id=doc.id, line_id=l.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">✕</button></form></td></tr>
+      {% else %}<tr><td colspan="5" class="empty-state">No lines yet.</td></tr>{% endfor %}
+      </table>
+      <form method="post" action="{{ url_for('quotes.add_line', quote_id=doc.id) }}" style="margin-top:10px;">
+        <div class="form-row">
+          <div><label>Item Type</label><select name="item_type" id="itemType" onchange="toggleType()"><option value="Kit">Kit</option><option value="Part">Part</option><option value="Custom">Custom</option></select></div>
+          <div id="kitPicker"><label>Kit</label><select name="kit_id">{% for k in kits %}<option value="{{ k.id }}">{{ k.kit_name }}</option>{% endfor %}</select></div>
+          <div id="partPicker" style="display:none;"><label>Part</label><select name="part_id">{% for p in parts %}<option value="{{ p.id }}">{{ p.part_name }}</option>{% endfor %}</select></div>
+          <div id="customDesc" style="display:none;"><label>Description</label><input name="description"></div>
+          <div style="max-width:90px;"><label>Qty</label><input type="number" name="quantity" value="1" min="1"></div>
+          <div id="customPrice" style="display:none; max-width:120px;"><label>Unit Price</label><input type="number" step="0.01" name="unit_price"></div>
+          <div><button class="btn btn-accent" style="margin-top:22px;" type="submit">Add</button></div>
+        </div>
+      </form>
+      <script>
+        function toggleType(){var t=document.getElementById('itemType').value;
+          document.getElementById('kitPicker').style.display=t==='Kit'?'':'none';
+          document.getElementById('partPicker').style.display=t==='Part'?'':'none';
+          document.getElementById('customDesc').style.display=t==='Custom'?'':'none';
+          document.getElementById('customPrice').style.display=t==='Custom'?'':'none';}
+      </script>
+    </div>
+
+    <div class="card">
+      <h3>Email to Client</h3>
+      <p class="subtitle">Starting text comes from the "Quote Sent" template in Administration &gt; Company — edit either field before sending, it's just a draft until you click Send.</p>
+      <form method="post" action="{{ url_for('quotes.email_to_client', quote_id=doc.id) }}">
+        <label>To</label><input value="{{ doc.client_email or '' }}" disabled>
+        <label>Subject</label><input name="subject" value="{{ draft_subject }}">
+        <label>Body</label><textarea name="body" style="min-height:140px;">{{ draft_body }}</textarea>
+        <button class="btn btn-accent btn-sm" style="margin-top:10px;" type="submit">Send</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="preview-pane">
+    <h3 style="font-family:'Poppins',sans-serif;">Live Preview</h3>
+    {% set doc_label = "Quote" %}
+    {% set show_abn = false %}
+    {% include "_document_preview.html" %}
+  </div>
+</div>
+{% endblock %}

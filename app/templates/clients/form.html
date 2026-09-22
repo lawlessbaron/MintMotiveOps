@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}New Client — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><h1>New Client</h1></div>
+<div class="card" style="max-width:640px;">
+  <form method="post">
+    <label>Client Name *</label><input name="client_name" required>
+    <div class="form-row">
+      <div><label>Company</label><input name="company"></div>
+      <div><label>Client Type</label>
+        <select name="client_type"><option>Individual</option><option>Business</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div><label>Email</label><input type="email" name="email"></div>
+      <div><label>Phone</label><input name="phone"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Payment Terms</label>
+        <select name="payment_term_id">
+          <option value="">Use company default</option>
+          {% for pt in payment_terms %}<option value="{{ pt.id }}">{{ pt.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div><label>Status</label><select name="status"><option>Active</option><option>Inactive</option></select></div>
+    </div>
+    <label>Client Since</label><input type="date" name="client_since">
+    <label>Notes</label><textarea name="notes"></textarea>
+    <button class="btn btn-accent" style="margin-top:14px;" type="submit">Create Client</button>
+  </form>
+</div>
+{% endblock %}

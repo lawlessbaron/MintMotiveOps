@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Inventory — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Inventory</h1><div class="subtitle">Parts with real fields — not a generic name/status/value form.</div></div>
+  <a class="btn btn-accent" href="{{ url_for('parts.new') }}">+ New Part</a>
+</div>
+<div class="card">
+  <form class="form-row" method="get">
+    <div><input type="search" name="q" placeholder="Search name or part number…" value="{{ q }}"></div>
+    <div><select name="category_id" onchange="this.form.submit()">
+      <option value="">All categories</option>
+      {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if category_id|string==c.id|string }}>{{ c.name }}</option>{% endfor %}
+    </select></div>
+  </form>
+</div>
+<div class="card">
+  {% if parts %}
+  <table class="data-table">
+    <tr><th>Part</th><th>Number</th><th>Category</th><th>On Hand</th><th>Reserved</th><th>Available</th><th>Sell Price</th></tr>
+    {% for p in parts %}
+    <tr {% if (p.quantity_on_hand - p.quantity_reserved) <= p.reorder_threshold %}style="background:rgba(200,60,60,0.06);"{% endif %}>
+      <td>{% if p.product_image_path %}<img src="/static/{{ p.product_image_path }}" style="width:28px;height:28px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px;">{% endif %}<a class="row-link" href="{{ url_for('parts.detail', part_id=p.id) }}">{{ p.part_name }}</a></td>
+      <td>{{ p.part_number or '—' }}</td>
+      <td>{{ p.category_name or '—' }}</td>
+      <td>{{ p.quantity_on_hand }}</td>
+      <td>{{ p.quantity_reserved }}</td>
+      <td>{{ available_qty(p.quantity_on_hand, p.quantity_reserved) }}</td>
+      <td>${{ "%.2f"|format(sell_price(p.unit_cost, p.margin_pct)) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<div class="empty-state">No parts yet — add your first one.</div>{% endif %}
+</div>
+{% endblock %}

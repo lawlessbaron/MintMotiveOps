@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Warehouse — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1>Warehouse</h1><div class="subtitle">Physical storage locations — Parts Storage, Finished Kit Storage, and Workstations — and what's sitting in each.</div></div></div>
+
+<div class="stat-grid">
+  <div class="stat-tile"><div class="label">Locations</div><div class="value">{{ locations|length }}</div></div>
+  <div class="stat-tile"><div class="label">Parts Unassigned to a Location</div><div class="value">{{ unassigned }}</div></div>
+</div>
+
+<div class="card">
+  <h2>Locations</h2>
+  <p class="subtitle">A location that's a specific cell in a printed Gridfinity baseplate can record which baseplate and its (X,Y) coordinate — that drives the visual grid map and serpentine pick-path ordering on Batch Production Run pick lists. Leave it blank for a plain shelf or workstation.</p>
+  <table class="data-table">
+    <tr><th>Name</th><th>Type</th><th>Gridfinity</th><th># Parts</th><th>Total Qty On Hand</th><th></th></tr>
+    {% for l in locations %}
+    <tr>
+      <td><a class="row-link" href="{{ url_for('warehouse.detail', location_id=l.id) }}">{{ l.name }}</a></td>
+      <td><span class="badge {{ 'accent' if l.type=='Finished Kit Storage' }}">{{ l.type or '—' }}</span></td>
+      <td class="subtitle">{% if l.baseplate_name %}{{ l.baseplate_name }} ({{ l.grid_x }},{{ l.grid_y }}){% else %}—{% endif %}</td>
+      <td>{{ l.part_count }}</td>
+      <td>{{ l.total_qty }}</td>
+      <td><a href="#" onclick="toggleLoc(event, {{ l.id }})">Edit</a></td>
+    </tr>
+    <tr id="edit-loc-{{ l.id }}" style="display:none;"><td colspan="6">
+      <form method="post" action="{{ url_for('warehouse.edit_location', location_id=l.id) }}">
+        <div class="form-row">
+          <div><label>Name</label><input name="name" value="{{ l.name }}" required></div>
+          <div><label>Type</label>
+            <select name="type">
+              <option value="Parts Storage" {{ 'selected' if l.type=='Parts Storage' }}>Parts Storage</option>
+              <option value="Finished Kit Storage" {{ 'selected' if l.type=='Finished Kit Storage' }}>Finished Kit Storage</option>
+              <option value="Workstation" {{ 'selected' if l.type=='Workstation' }}>Workstation</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div><label>Baseplate Name</label><input name="baseplate_name" value="{{ l.baseplate_name or '' }}" placeholder="e.g. Drawer 1"></div>
+          <div><label>Grid X</label><input type="number" min="0" name="grid_x" value="{{ l.grid_x if l.grid_x is not none else '' }}" style="width:80px;"></div>
+          <div><label>Grid Y</label><input type="number" min="0" name="grid_y" value="{{ l.grid_y if l.grid_y is not none else '' }}" style="width:80px;"></div>
+          <div style="align-self:flex-end;"><button class="btn btn-accent btn-sm" type="submit">Save</button></div>
+        </div>
+      </form>
+    </td></tr>
+    {% else %}
+    <tr><td colspan="6" class="subtitle">No locations set up yet — add one below.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h2>Add Location</h2>
+  <form method="post" action="{{ url_for('warehouse.add_location') }}">
+    <div class="form-row">
+      <div><label>Name</label><input name="name" required placeholder="e.g. Shelf A3, Assembly Bench 1"></div>
+      <div><label>Type</label>
+        <select name="type">
+          <option value="Parts Storage">Parts Storage</option>
+          <option value="Finished Kit Storage">Finished Kit Storage</option>
+          <option value="Workstation">Workstation</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div><label>Baseplate Name (optional)</label><input name="baseplate_name" placeholder="e.g. Drawer 1"></div>
+      <div><label>Grid X</label><input type="number" min="0" name="grid_x" style="width:80px;"></div>
+      <div><label>Grid Y</label><input type="number" min="0" name="grid_y" style="width:80px;"></div>
+      <div style="align-self:flex-end;"><button class="btn btn-accent" type="submit">Add Location</button></div>
+    </div>
+  </form>
+</div>
+
+<script>
+function toggleLoc(e, id) {
+  e.preventDefault();
+  var row = document.getElementById('edit-loc-' + id);
+  row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+}
+</script>
+{% endblock %}

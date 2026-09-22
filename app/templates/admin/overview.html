@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Administration — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Administration</h1></div>
+<div class="tabs">
+  <a class="active" href="{{ url_for('admin.index') }}">Overview</a>
+  <a href="{{ url_for('admin.company') }}">Company</a>
+  <a href="{{ url_for('admin.duties_shipping') }}">Duties &amp; Shipping</a>
+  <a href="{{ url_for('admin.numbering') }}">Numbering</a>
+  <a href="{{ url_for('admin.integrations') }}">Integrations</a>
+  <a href="{{ url_for('admin.security') }}">Security</a>
+  <a href="{{ url_for('admin.appearance') }}">Appearance</a>
+  <a href="{{ url_for('admin.audit_log') }}">Audit Log</a>
+  <a href="{{ url_for('admin.local_agent') }}">Local Agent</a>
+</div>
+<div class="stat-grid">
+  <div class="stat-tile"><div class="label">Company</div><div class="value" style="font-size:15px;">GST {{ company.default_gst_rate_pct }}% · {{ 7 }} reference lists configured</div></div>
+  <div class="stat-tile"><div class="label">Numbering</div><div class="value" style="font-size:15px;">{{ numbering_count }} sequences · Next Invoice {{ next_invoice_str or '—' }}</div></div>
+  <div class="stat-tile"><div class="label">Integrations</div><div class="value" style="font-size:15px;">Shopify — {{ shopify.status if shopify else 'Not configured' }}</div></div>
+  <div class="stat-tile"><div class="label">Security</div><div class="value" style="font-size:15px;">{% for r in role_counts %}{{ r.role }}: {{ r.c }}{% if not loop.last %}, {% endif %}{% endfor %}</div></div>
+</div>
+<div class="card">
+  <p>Each tile above links to the tab that actually configures it — this Overview is a status summary, not a data-entry form itself. Every setting elsewhere in Administration is read by a real part of the app: Numbering drives auto-generated document numbers, Company's margin/payment-term defaults pre-fill new records, and Integrations reflects the real (attempted) sync result.</p>
+</div>
+{% endblock %}

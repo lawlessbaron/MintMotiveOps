@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}BAS Generator — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><h1>BAS Generator</h1></div>
+
+<div class="card">
+  <p class="subtitle">
+    GST Collected is calculated exactly, from paid/sent invoice lines in the period. GST Paid is summed
+    straight from the <a href="{{ url_for('financial.expenses') }}">Expenses ledger</a> — PO receipts file
+    themselves there automatically, and everything else (rent, software subscriptions, freight, tools,
+    utilities, professional services) is added manually. It's only as complete as that ledger is kept, so
+    treat this as a strong starting point for BAS prep, not a lodging-ready figure — check with your
+    bookkeeper/accountant before lodging.
+  </p>
+  <form method="post" class="form-row" style="align-items:flex-end;">
+    <div><label>Period Start</label><input type="date" name="period_start" required></div>
+    <div><label>Period End</label><input type="date" name="period_end" required></div>
+    <div><button class="btn btn-accent" type="submit">Generate Estimate</button></div>
+  </form>
+</div>
+
+{% if report %}
+<div class="card">
+  <h2>Result — {{ report.period_start }} to {{ report.period_end }}</h2>
+  <div class="stat-grid">
+    <div class="stat-tile"><div class="label">GST Collected</div><div class="value">${{ "%.2f"|format(report.gst_collected) }}</div></div>
+    <div class="stat-tile"><div class="label">GST Paid (estimated)</div><div class="value">${{ "%.2f"|format(report.gst_paid_estimated) }}</div></div>
+    <div class="stat-tile"><div class="label">Net GST Payable</div><div class="value">${{ "%.2f"|format(report.net_gst_payable) }}</div></div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Previous Estimates</h2>
+  <table class="data-table">
+    <tr><th>Period</th><th>GST Collected</th><th>GST Paid (est.)</th><th>Net Payable</th><th>Generated</th></tr>
+    {% for h in history %}
+    <tr>
+      <td>{{ h.period_start }} – {{ h.period_end }}</td>
+      <td>${{ "%.2f"|format(h.gst_collected) }}</td>
+      <td>${{ "%.2f"|format(h.gst_paid_estimated) }}</td>
+      <td>${{ "%.2f"|format(h.net_gst_payable) }}</td>
+      <td class="subtitle">{{ h.generated_at }}</td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="empty-state">No estimates generated yet.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

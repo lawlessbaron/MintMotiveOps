@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}New Supplier — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><h1>New Supplier</h1></div>
+<div class="card" style="max-width:640px;">
+  <form method="post">
+    <label>Supplier Name *</label><input name="supplier_name" required>
+    <label>Supplier Code (blank = auto-generate)</label><input name="supplier_code">
+    <div class="form-row"><div><label>Contact Name</label><input name="contact_name"></div><div><label>Website</label><input name="website"></div></div>
+    <div class="form-row"><div><label>Email</label><input type="email" name="email"></div><div><label>Phone</label><input name="phone"></div></div>
+    <label>Address</label><textarea name="address"></textarea>
+    <div class="form-row">
+      <div><label>Payment Terms</label><select name="payment_term_id"><option value="">Use company default</option>{% for t in terms %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></div>
+      <div><label>Currency</label><select name="currency"><option>AUD</option><option>USD</option><option>EUR</option><option>Other</option></select></div>
+    </div>
+    <div class="form-row">
+      <div><label>Tax/Business Number</label><input name="tax_business_number"></div>
+      <div><label>Status</label><select name="status"><option>Active</option><option>Inactive</option><option>On Hold</option></select></div>
+    </div>
+    <label>Notes</label><textarea name="notes"></textarea>
+    <button class="btn btn-accent" style="margin-top:12px;" type="submit">Create Supplier</button>
+  </form>
+</div>
+{% endblock %}

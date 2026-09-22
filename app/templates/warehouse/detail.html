@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ location.name }} — Warehouse{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>{{ location.name }}</h1><div class="subtitle"><span class="badge accent">{{ location.type or '—' }}</span></div></div>
+  <a class="btn" href="{{ url_for('warehouse.index') }}">← Back to Warehouse</a>
+</div>
+<div class="card">
+  <h2>Parts stored here</h2>
+  {% if parts %}
+  <table class="data-table">
+    <tr><th>Part</th><th>Part #</th><th>On Hand</th><th>Reserved</th><th>Available</th></tr>
+    {% for p in parts %}
+    <tr>
+      <td><a class="row-link" href="{{ url_for('parts.detail', part_id=p.id) }}">{{ p.part_name }}</a></td>
+      <td>{{ p.part_number or '—' }}</td>
+      <td>{{ p.quantity_on_hand }}</td>
+      <td>{{ p.quantity_reserved }}</td>
+      <td>{{ p.quantity_on_hand - p.quantity_reserved }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<div class="empty-state">No parts assigned to this location yet. Set a part's Bin Location from its detail page.</div>{% endif %}
+</div>
+{% endblock %}

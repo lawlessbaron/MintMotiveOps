@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1>Dashboard</h1><div class="subtitle">Real numbers from your actual records.</div></div></div>
+
+<div class="stat-grid">
+  <div class="stat-tile"><div class="label">Open Sales Orders</div><div class="value">{{ stats.open_sales_orders }}</div></div>
+  <div class="stat-tile"><div class="label">Active Builds</div><div class="value">{{ stats.active_builds }}</div></div>
+  <div class="stat-tile"><div class="label">Unpaid Invoices</div><div class="value">{{ stats.unpaid_invoices }}</div></div>
+  <div class="stat-tile"><div class="label">Outstanding ($)</div><div class="value">${{ "%.2f"|format(stats.outstanding_value) }}</div></div>
+  <div class="stat-tile"><div class="label">Low / Reorder Stock</div><div class="value">{{ stats.low_stock_parts }}</div></div>
+  <div class="stat-tile"><div class="label">Total Clients</div><div class="value">{{ stats.total_clients }}</div></div>
+</div>
+
+<div class="form-row">
+  <div class="card" style="flex:1; min-width:320px;">
+    <h2>Recent Sales Orders</h2>
+    {% if recent_orders %}
+    <table class="data-table">
+      <tr><th>Order</th><th>Client</th><th>Status</th></tr>
+      {% for o in recent_orders %}
+      <tr><td><a class="row-link" href="{{ url_for('sales_orders.detail', order_id=o.id) }}">{{ o.order_number }}</a></td><td>{{ o.client_name }}</td><td><span class="badge">{{ o.status }}</span></td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<div class="empty-state">No sales orders yet.</div>{% endif %}
+  </div>
+  <div class="card" style="flex:1; min-width:320px;">
+    <h2>Active Builds</h2>
+    {% if active_builds %}
+    <table class="data-table">
+      <tr><th>Build</th><th>Kit</th><th>Client</th><th>Status</th></tr>
+      {% for b in active_builds %}
+      <tr><td><a class="row-link" href="{{ url_for('builds.detail', build_id=b.id) }}">{{ b.build_number }}</a></td><td>{{ b.kit_name }}</td><td>{{ b.client_name or '—' }}</td><td><span class="badge accent">{{ b.status }}</span></td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<div class="empty-state">No builds in progress.</div>{% endif %}
+  </div>
+  <div class="card" style="flex:1; min-width:320px;">
+    <h2>Low Stock</h2>
+    {% if low_stock %}
+    <table class="data-table">
+      <tr><th>Part</th><th>Available</th><th>Reorder At</th></tr>
+      {% for p in low_stock %}
+      <tr><td><a class="row-link" href="{{ url_for('parts.detail', part_id=p.id) }}">{{ p.part_name }}</a></td><td>{{ p.quantity_on_hand - p.quantity_reserved }}</td><td>{{ p.reorder_threshold }}</td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<div class="empty-state">Nothing below its reorder threshold.</div>{% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Labels & Quick Links — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1>Labels &amp; Quick Links</h1><div class="subtitle">Manage the URLs printed on part/kit labels, plus reusable shortcut links (review pages, help docs, videos) sent to clients.</div></div></div>
+
+<div class="card">
+  <h2>Quick Links</h2>
+  <label>Select Quick Link</label>
+  <select onchange="loadItem('link', this.value, {{ links|tojson }})">
+    <option value="">— Add new quick link —</option>
+    {% for l in links %}<option value="{{ l.id }}" {{ 'disabled' if not l.active }}>{{ l.link_name }}{% if not l.active %} (inactive){% endif %}</option>{% endfor %}
+  </select>
+  <form method="post" action="{{ url_for('quicklinks.add') }}" id="form-link" style="margin-top:12px;">
+    <input type="hidden" name="id" id="link-id">
+    <div class="form-row">
+      <div><label>Link Name</label><input name="link_name" id="link-link_name" required></div>
+      <div><label>Type</label>
+        <select name="link_type" id="link-link_type">
+          <option>Google Review Page</option><option>Help Document</option><option>Landing Page</option><option>Video</option><option>Custom URL</option>
+        </select>
+      </div>
+      <div><label>URL</label><input name="url" id="link-url" required></div>
+    </div>
+    <div class="form-row">
+      <div><label>Related Part</label><select name="related_part_id" id="link-related_part_id"><option value="">—</option>{% for p in parts %}<option value="{{ p.id }}">{{ p.part_name }}</option>{% endfor %}</select></div>
+      <div><label>Related Kit</label><select name="related_kit_id" id="link-related_kit_id"><option value="">—</option>{% for k in kits %}<option value="{{ k.id }}">{{ k.kit_name }}</option>{% endfor %}</select></div>
+      <div><label>Related Client</label><select name="related_client_id" id="link-related_client_id"><option value="">—</option>{% for c in clients %}<option value="{{ c.id }}">{{ c.client_name }}</option>{% endfor %}</select></div>
+    </div>
+    <label>Notes</label><input name="notes" id="link-notes">
+    <div class="checkbox-row"><input type="checkbox" name="active" id="link-active" checked><label style="margin:0;">Active</label></div>
+    <button class="btn btn-accent btn-sm" style="margin-top:10px;" type="submit">Save Quick Link</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Sticker / Label Templates</h2>
+  <p class="subtitle">Physical dimensions and material for printed labels — referenced when producing part/kit stickers.</p>
+  <label>Select Template</label>
+  <select onchange="loadItem('tpl', this.value, {{ templates|tojson }})">
+    <option value="">— Add new template —</option>
+    {% for t in templates %}<option value="{{ t.id }}">{{ t.template_name }}</option>{% endfor %}
+  </select>
+  <form method="post" action="{{ url_for('quicklinks.add_template') }}" id="form-tpl" style="margin-top:12px;">
+    <input type="hidden" name="id" id="tpl-id">
+    <div class="form-row">
+      <div><label>Template Name</label><input name="template_name" id="tpl-template_name" required></div>
+      <div><label>Material</label>
+        <select name="material" id="tpl-material">
+          <option value="Carbon Vinyl">Carbon Vinyl</option><option value="Printable Paper">Printable Paper</option>
+          <option value="Clear/Waterproof">Clear/Waterproof</option><option value="Other">Other</option>
+        </select>
+      </div>
+      <div><label>Width (mm)</label><input type="number" step="0.1" name="width_mm" id="tpl-width_mm"></div>
+      <div><label>Height (mm)</label><input type="number" step="0.1" name="height_mm" id="tpl-height_mm"></div>
+    </div>
+    <label>Notes</label><input name="notes" id="tpl-notes">
+    <button class="btn btn-accent btn-sm" style="margin-top:10px;" type="submit">Save Template</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Label URLs (Parts &amp; Kits)</h2>
+  {% if qr_available %}
+  <p class="subtitle">Every label printed for a Part or Kit encodes one of these URLs, set from that record's own page (Label Link Type / Label URL). Right-click any code below to save it, or print straight from this page.</p>
+  {% else %}
+  <p class="subtitle">Every label printed for a Part or Kit encodes one of these URLs, set from that record's own page (Label Link Type / Label URL). QR-code image rendering needs a small graphics library — run <code>pip install -r requirements.txt</code> (it's already listed) on a machine with internet access to turn these into scannable images; the URLs themselves are fully live now and can be copied straight into any QR generator in the meantime.</p>
+  {% endif %}
+  <table class="data-table">
+    <tr><th>Item</th><th>Link Type</th><th>URL</th>{% if qr_available %}<th>QR Code</th>{% endif %}</tr>
+    {% for p in parts %}
+    {% set has_url = p.label_url or p.label_link_type == 'Internal Record' %}
+    <tr>
+      <td>{{ p.part_name }}</td>
+      <td>{{ p.label_link_type }}</td>
+      <td class="subtitle">{{ p.label_url or (url_for('parts.detail', part_id=p.id, _external=True) if p.label_link_type == 'Internal Record' else '—') }}</td>
+      {% if qr_available %}<td>{% if has_url %}<img src="{{ url_for('quicklinks.qr_part', part_id=p.id) }}" alt="QR code for {{ p.part_name }}" width="72" height="72">{% else %}—{% endif %}</td>{% endif %}
+    </tr>
+    {% endfor %}
+    {% for k in kits %}
+    <tr>
+      <td>{{ k.kit_name }}</td>
+      <td>{{ k.customer_label_link_type }}</td>
+      <td class="subtitle">{{ k.customer_label_url or '—' }}</td>
+      {% if qr_available %}<td>{% if k.customer_label_url %}<img src="{{ url_for('quicklinks.qr_kit', kit_id=k.id) }}" alt="QR code for {{ k.kit_name }}" width="72" height="72">{% else %}—{% endif %}</td>{% endif %}
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h2>Quick Links</h2>
+  <p class="subtitle">The same reusable shortcut links from the form above, as scannable codes — handy for a printed review-page card in the box, or a help-doc code on a workstation.</p>
+  <table class="data-table">
+    <tr><th>Link Name</th><th>Type</th><th>URL</th>{% if qr_available %}<th>QR Code</th>{% endif %}</tr>
+    {% for l in links %}
+    <tr>
+      <td>{{ l.link_name }}{% if not l.active %} <span class="subtitle">(inactive)</span>{% endif %}</td>
+      <td>{{ l.link_type }}</td>
+      <td class="subtitle">{{ l.url }}</td>
+      {% if qr_available %}<td><img src="{{ url_for('quicklinks.qr_link', link_id=l.id) }}" alt="QR code for {{ l.link_name }}" width="72" height="72"></td>{% endif %}
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<script>
+function loadItem(prefix, id, items) {
+  var item = items.find(function(i){ return String(i.id) === String(id); }) || {};
+  document.getElementById(prefix + '-id').value = item.id || '';
+  Object.keys(item).forEach(function(field){
+    var el = document.getElementById(prefix + '-' + field);
+    if (el) { if (el.type === 'checkbox') { el.checked = !!item[field]; } else { el.value = item[field] == null ? '' : item[field]; } }
+  });
+  var form = document.getElementById('form-' + prefix);
+  form.action = id ? form.action.replace(/\/(add|\d+\/edit)$/, '/' + id + '/edit') : form.action.replace(/\/\d+\/edit$/, '/add');
+  if (!id) {
+    form.querySelectorAll('input:not([type=hidden]):not([type=checkbox])').forEach(function(el){ el.value = ''; });
+  }
+}
+</script>
+{% endblock %}

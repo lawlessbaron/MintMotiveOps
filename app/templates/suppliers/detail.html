@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ supplier.supplier_name }} — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1>{{ supplier.supplier_name }}</h1><div class="subtitle">{{ supplier.supplier_code }}</div></div><span class="badge {{ 'accent' if supplier.status=='Active' }}">{{ supplier.status }}</span></div>
+<div class="card">
+  <form method="post" action="{{ url_for('suppliers.edit', supplier_id=supplier.id) }}">
+    <div class="form-row"><div><label>Name</label><input name="supplier_name" value="{{ supplier.supplier_name }}" required></div><div><label>Code</label><input name="supplier_code" value="{{ supplier.supplier_code or '' }}"></div></div>
+    <div class="form-row"><div><label>Contact Name</label><input name="contact_name" value="{{ supplier.contact_name or '' }}"></div><div><label>Website</label><input name="website" value="{{ supplier.website or '' }}"></div></div>
+    <div class="form-row"><div><label>Email</label><input type="email" name="email" value="{{ supplier.email or '' }}"></div><div><label>Phone</label><input name="phone" value="{{ supplier.phone or '' }}"></div></div>
+    <label>Address</label><textarea name="address">{{ supplier.address or '' }}</textarea>
+    <div class="form-row">
+      <div><label>Payment Terms</label><select name="payment_term_id">{% for t in terms %}<option value="{{ t.id }}" {{ 'selected' if supplier.payment_term_id==t.id }}>{{ t.name }}</option>{% endfor %}</select></div>
+      <div><label>Status</label><select name="status"><option {{ 'selected' if supplier.status=='Active' }}>Active</option><option {{ 'selected' if supplier.status=='Inactive' }}>Inactive</option><option {{ 'selected' if supplier.status=='On Hold' }}>On Hold</option></select></div>
+    </div>
+    <label>Notes</label><textarea name="notes">{{ supplier.notes or '' }}</textarea>
+    <button class="btn btn-accent" style="margin-top:12px;" type="submit">Save</button>
+  </form>
+</div>
+<div class="form-row">
+  <div class="card" style="flex:1;min-width:300px;"><h2>Parts Supplied</h2>
+    <table class="data-table"><tr><th>Part</th><th>Their SKU</th><th>Cost</th></tr>
+    {% for p in parts %}<tr><td><a class="row-link" href="{{ url_for('parts.detail', part_id=p.id) }}">{{ p.part_name }}</a></td><td>{{ p.supplier_part_number or '—' }}</td><td>{{ '$%.2f'|format(p.supplier_cost) if p.supplier_cost else '—' }}</td></tr>{% else %}<tr><td colspan="3" class="empty-state">None yet.</td></tr>{% endfor %}
+    </table>
+  </div>
+  <div class="card" style="flex:1;min-width:300px;"><h2>Purchase Orders</h2>
+    <table class="data-table"><tr><th>PO</th><th>Date</th><th>Status</th></tr>
+    {% for po in pos %}<tr><td><a class="row-link" href="{{ url_for('purchase_orders.detail', po_id=po.id) }}">{{ po.po_number }}</a></td><td>{{ po.order_date }}</td><td><span class="badge">{{ po.status }}</span></td></tr>{% else %}<tr><td colspan="3" class="empty-state">None yet.</td></tr>{% endfor %}
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Reliability</h2>
+  {% if reliability %}
+  <p>Average <strong>{{ reliability.avg_days_late }} days</strong> {{ 'late' if reliability.avg_days_late > 0 else 'early/on-time' }}, across {{ reliability.po_count }} received PO(s) with both an expected and a received date recorded.</p>
+  {% else %}
+  <p class="subtitle">No reliability data yet — record a Received Date on a PO's Landed Cost section to start tracking this.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Blackout Periods</h2>
+  <p class="subtitle">Dates this supplier can't fulfil orders (factory shutdown, holidays) — the Procurement Queue flags any draft PO suggestion against an active blackout.</p>
+  <table class="data-table">
+    <tr><th>Start</th><th>End</th><th>Reason</th><th></th></tr>
+    {% for period in blackout_periods %}
+    <tr>
+      <td>{{ period.start_date }}</td><td>{{ period.end_date }}</td><td class="subtitle">{{ period.reason or '' }}</td>
+      <td><form method="post" action="{{ url_for('suppliers.remove_blackout', supplier_id=supplier.id, period_id=period.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">✕</button></form></td>
+    </tr>
+    {% else %}<tr><td colspan="4" class="empty-state">None scheduled.</td></tr>{% endfor %}
+  </table>
+  <form method="post" action="{{ url_for('suppliers.add_blackout', supplier_id=supplier.id) }}" class="form-row" style="margin-top:12px; align-items:flex-end;">
+    <div><label>Start Date</label><input type="date" name="start_date" required></div>
+    <div><label>End Date</label><input type="date" name="end_date" required></div>
+    <div style="flex:2;"><label>Reason</label><input name="reason" placeholder="e.g. Lunar New Year"></div>
+    <div><button class="btn btn-accent" type="submit">Add Period</button></div>
+  </form>
+</div>
+{% endblock %}

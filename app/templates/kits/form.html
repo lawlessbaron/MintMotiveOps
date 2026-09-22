@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}New Kit — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><h1>New Kit</h1></div>
+<div class="card" style="max-width:640px;">
+  <form method="post" enctype="multipart/form-data">
+    <div class="form-row"><div><label>Kit Name *</label><input name="kit_name" required></div><div><label>SKU (blank = auto)</label><input name="sku"></div></div>
+    <label>Kit Image</label><input type="file" name="kit_image" accept="image/*">
+    <div class="form-row">
+      <div><label>Category</label><select name="category_id"><option value="">—</option>{% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></div>
+      <div><label>Status</label><select name="status"><option>In Development</option><option>Active</option><option>Discontinued</option></select></div>
+    </div>
+    <label>Screen Size</label><input name="screen_size" placeholder="e.g. 6.8in, 3.4in Round">
+    <div class="form-row">
+      <div><label>Margin % (blank = category/company default)</label><input type="number" step="0.01" name="margin_pct"></div>
+      <div><label>Estimated Freight Allowance</label><input type="number" step="0.01" name="estimated_freight_allowance"></div>
+    </div>
+    <div class="checkbox-row"><input type="checkbox" name="freight_included_in_price" id="fip"><label for="fip" style="margin:0;">Freight Included In Price</label></div>
+    <div class="checkbox-row"><input type="checkbox" name="is_subassembly" id="is_subassembly"><label for="is_subassembly" style="margin:0;">Sub-Assembly (built internally, not sold directly — used as a BOM component on other Kits)</label></div>
+    <label>Description</label><textarea name="description"></textarea>
+    <button class="btn btn-accent" style="margin-top:12px;" type="submit">Create Kit</button>
+  </form>
+</div>
+{% endblock %}

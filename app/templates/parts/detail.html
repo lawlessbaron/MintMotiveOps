@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ part.part_name }} — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div style="display:flex; gap:14px; align-items:center;">
+    {% if part.product_image_path %}<img src="/static/{{ part.product_image_path }}" style="width:56px;height:56px;object-fit:cover;border-radius:10px;">{% endif %}
+    <div><h1>{{ part.part_name }}</h1><div class="subtitle">{{ part.part_number }}</div></div>
+  </div>
+  <div class="stat-grid" style="min-width:280px;">
+    <div class="stat-tile"><div class="label">Available</div><div class="value">{{ available_qty }}</div></div>
+    <div class="stat-tile"><div class="label">Sell Price</div><div class="value">${{ "%.2f"|format(sell_price) }}</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Details</h2>
+  <form method="post" action="{{ url_for('parts.edit', part_id=part.id) }}" enctype="multipart/form-data">
+    <div class="form-row">
+      <div><label>Part Name</label><input name="part_name" value="{{ part.part_name }}" required></div>
+      <div><label>Part Number</label><input name="part_number" value="{{ part.part_number or '' }}"></div>
+    </div>
+    <label>Replace Product Image</label><input type="file" name="product_image" accept="image/*">
+    <div class="form-row">
+      <div><label>Category</label><select name="category_id"><option value="">—</option>{% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if part.category_id==c.id }}>{{ c.name }}</option>{% endfor %}</select></div>
+      <div><label>Preferred Supplier</label><select name="preferred_supplier_id"><option value="">—</option>{% for s in suppliers %}<option value="{{ s.id }}" {{ 'selected' if part.preferred_supplier_id==s.id }}>{{ s.supplier_name }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="form-row">
+      <div><label>Quantity On Hand</label><input type="number" name="quantity_on_hand" value="{{ part.quantity_on_hand }}"></div>
+      <div><label>Reserved (system-managed)</label><input type="number" value="{{ part.quantity_reserved }}" disabled></div>
+      <div><label>Reorder Threshold</label><input type="number" name="reorder_threshold" value="{{ part.reorder_threshold }}"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Unit Cost ($)</label><input type="number" step="0.01" name="unit_cost" value="{{ part.unit_cost }}"></div>
+      <div><label>Margin %</label><input type="number" step="0.01" name="margin_pct" value="{{ part.margin_pct }}"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Harmonised Code</label><select name="harmonised_code_id"><option value="">—</option>{% for h in harmonised_codes %}<option value="{{ h.id }}" {{ 'selected' if part.harmonised_code_id==h.id }}>{{ h.code }}</option>{% endfor %}</select></div>
+      <div><label>Country of Origin</label><select name="country_of_origin_id"><option value="">—</option>{% for c in countries %}<option value="{{ c.id }}" {{ 'selected' if part.country_of_origin_id==c.id }}>{{ c.country_name }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="form-row">
+      <div><label>Weight (kg)</label><input type="number" step="0.01" name="weight_kg" value="{{ part.weight_kg or '' }}"></div>
+      <div><label>L (cm)</label><input type="number" step="0.1" name="length_cm" value="{{ part.length_cm or '' }}"></div>
+      <div><label>W (cm)</label><input type="number" step="0.1" name="width_cm" value="{{ part.width_cm or '' }}"></div>
+      <div><label>H (cm)</label><input type="number" step="0.1" name="height_cm" value="{{ part.height_cm or '' }}"></div>
+    </div>
+    <label>Bin Location</label>
+    <select name="bin_location_id"><option value="">—</option>{% for l in locations %}<option value="{{ l.id }}" {{ 'selected' if part.bin_location_id==l.id }}>{{ l.name }}</option>{% endfor %}</select>
+    <label>Notes</label><textarea name="notes">{{ part.notes or '' }}</textarea>
+    <button class="btn btn-accent" style="margin-top:12px;" type="submit">Save Changes</button>
+  </form>
+</div>
+
+<div class="form-row">
+  <div class="card" style="flex:1; min-width:300px;">
+    <h2>Sourcing Options</h2>
+    <table class="data-table"><tr><th>Supplier</th><th>Their SKU</th><th>Cost</th><th>Lead Time</th></tr>
+    {% for ps in part_suppliers %}<tr><td>{{ ps.supplier_name }}{% if ps.preferred %} <span class="badge accent">Preferred</span>{% endif %}</td><td>{{ ps.supplier_part_number or '—' }}</td><td>${{ '%.2f'|format(ps.supplier_cost) if ps.supplier_cost else '—' }}</td><td>{{ ps.lead_time_days or '—' }}d</td></tr>{% else %}<tr><td colspan="4" class="empty-state">No sourcing options yet.</td></tr>{% endfor %}
+    </table>
+    <details style="margin-top:10px;"><summary class="btn btn-sm" style="display:inline-block;cursor:pointer;">+ Add Sourcing Option</summary>
+      <form method="post" action="{{ url_for('parts.add_supplier_link', part_id=part.id) }}" style="margin-top:10px;">
+        <label>Supplier *</label><select name="supplier_id" required>{% for s in suppliers %}<option value="{{ s.id }}">{{ s.supplier_name }}</option>{% endfor %}</select>
+        <div class="form-row"><div><label>Their Part #</label><input name="supplier_part_number"></div><div><label>Their Cost</label><input type="number" step="0.01" name="supplier_cost"></div></div>
+        <div class="form-row"><div><label>Lead Time (days)</label><input type="number" name="lead_time_days"></div><div><label>Source URL</label><input name="source_url"></div></div>
+        <div class="checkbox-row"><input type="checkbox" name="preferred" id="pref"><label for="pref" style="margin:0;">Preferred</label></div>
+        <button class="btn btn-accent btn-sm" style="margin-top:10px;" type="submit">Add</button>
+      </form>
+    </details>
+  </div>
+  <div class="card" style="flex:1; min-width:300px;">
+    <h2>Used In Kits</h2>
+    <table class="data-table"><tr><th>Kit</th><th>Qty per Kit</th></tr>
+    {% for k in used_in_kits %}<tr><td><a class="row-link" href="{{ url_for('kits.detail', kit_id=k.id) }}">{{ k.kit_name }}</a></td><td>{{ k.quantity_required }}</td></tr>{% else %}<tr><td colspan="2" class="empty-state">Not used in any kit yet.</td></tr>{% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}

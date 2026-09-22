@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}New Batch Run — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><h1>New Batch Production Run</h1></div>
+<div class="card" style="max-width:560px;">
+  <form method="post">
+    <label>Kit *</label>
+    <select name="kit_id" required>
+      {% for k in kits %}<option value="{{ k.id }}">{{ k.kit_name }}{% if k.is_subassembly %} (Sub-Assembly){% endif %}</option>{% endfor %}
+    </select>
+    <label>Quantity</label>
+    <input type="number" name="quantity" value="1" min="1">
+    <label>Notes</label>
+    <textarea name="notes"></textarea>
+    <button class="btn btn-accent" style="margin-top:12px;" type="submit">Create Batch</button>
+  </form>
+</div>
+{% endblock %}

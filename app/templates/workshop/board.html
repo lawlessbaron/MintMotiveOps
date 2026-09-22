@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Workshop Board — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Workshop Board</h1><div class="subtitle">Drag a card to change a build's status — stock is reserved/consumed exactly as it would be from the Build page.</div></div>
+</div>
+
+<div class="kanban-board" id="kanbanBoard">
+  {% for status in statuses %}
+  <div class="kanban-col" data-status="{{ status }}">
+    <h3>{{ status }} <span>{{ columns[status]|length }}</span></h3>
+    <div class="kanban-drop" data-status="{{ status }}">
+      {% for b in columns[status] %}
+      <div class="kanban-card" draggable="true" data-build-id="{{ b.id }}">
+        <div class="kc-title"><a class="row-link" href="{{ url_for('builds.detail', build_id=b.id) }}">{{ b.build_number }}</a></div>
+        <div class="kc-sub">{{ b.kit_name }}</div>
+        <div class="kc-sub">{{ b.client_name or 'No client' }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var board = document.getElementById('kanbanBoard');
+  var dragged = null;
+
+  board.addEventListener('dragstart', function (e) {
+    if (!e.target.classList.contains('kanban-card')) return;
+    dragged = e.target;
+    e.target.classList.add('dragging');
+  });
+  board.addEventListener('dragend', function (e) {
+    if (!e.target.classList.contains('kanban-card')) return;
+    e.target.classList.remove('dragging');
+  });
+
+  board.querySelectorAll('.kanban-col').forEach(function (col) {
+    col.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      col.classList.add('drag-over');
+    });
+    col.addEventListener('dragleave', function () {
+      col.classList.remove('drag-over');
+    });
+    col.addEventListener('drop', function (e) {
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      if (!dragged) return;
+      var buildId = dragged.dataset.buildId;
+      var newStatus = col.dataset.status;
+      var dropZone = col.querySelector('.kanban-drop');
+      dropZone.appendChild(dragged);
+
+      var body = new URLSearchParams();
+      body.set('build_id', buildId);
+      body.set('status', newStatus);
+      fetch("{{ url_for('workshop.move') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      }).then(function (r) {
+        if (!r.ok) { location.reload(); }
+      }).catch(function () { location.reload(); });
+    });
+  });
+})();
+</script>
+{% endblock %}

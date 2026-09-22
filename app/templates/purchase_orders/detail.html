@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ po.po_number }} — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>{{ po.po_number }}</h1><div class="subtitle">{{ po.supplier_name }}</div></div>
+  <div style="display:flex; gap:8px;">
+    <form method="post" action="{{ url_for('purchase_orders.update_status', po_id=po.id) }}">
+      <select name="status" onchange="this.form.submit()">
+        {% for s in ['Draft','Sent','Confirmed','Partially Received','Received','Cancelled'] %}
+        <option value="{{ s }}" {{ 'selected' if po.status==s }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    {% if po.status in ('Received','Cancelled') %}
+    <form method="post" action="{{ url_for('purchase_orders.reopen', po_id=po.id) }}" onsubmit="return confirm('Reopen this PO?');">
+      <button class="btn btn-sm" type="submit">Reopen</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>Line Items — Partial Receiving</h2>
+  <table class="data-table"><tr><th>Part</th><th>Ordered</th><th>Received</th><th>Unit Cost</th><th>Line Total</th><th>Receive</th></tr>
+  {% for l in lines %}
+  <tr>
+    <td>{{ l.part_name }} <span class="subtitle">{{ l.part_number }}</span></td>
+    <td>{{ l.quantity_ordered }}</td><td>{{ l.quantity_received }}</td><td>${{ "%.2f"|format(l.unit_cost) }}</td>
+    <td>${{ "%.2f"|format(l.quantity_ordered * l.unit_cost) }}</td>
+    <td>
+      <form method="post" action="{{ url_for('purchase_orders.receive_line', po_id=po.id, line_id=l.id) }}" style="display:flex; gap:6px;">
+        <input type="number" name="quantity" min="1" max="{{ l.quantity_ordered - l.quantity_received }}" style="width:70px;" {{ 'disabled' if l.quantity_received >= l.quantity_ordered }}>
+        <button class="btn btn-sm btn-accent" type="submit" {{ 'disabled' if l.quantity_received >= l.quantity_ordered }}>Receive</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}<tr><td colspan="6" class="empty-state">No lines yet.</td></tr>{% endfor %}
+  <tr><td colspan="4" style="text-align:right; font-weight:700;">Total Value</td><td colspan="2" style="font-weight:700;">${{ "%.2f"|format(total) }}</td></tr>
+  </table>
+  <form method="post" action="{{ url_for('purchase_orders.add_line', po_id=po.id) }}" class="form-row" style="margin-top:14px; align-items:flex-end;">
+    <div><label>Part</label><select name="part_id" required>{% for p in parts %}<option value="{{ p.id }}">{{ p.part_name }}</option>{% endfor %}</select></div>
+    <div style="max-width:120px;"><label>Qty Ordered</label><input type="number" name="quantity_ordered" value="1" min="1"></div>
+    <div style="max-width:140px;"><label>Unit Cost</label><input type="number" step="0.01" name="unit_cost" value="0"></div>
+    <div><button class="btn btn-accent" type="submit">Add Line</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Duty &amp; Customs</h2>
+  <div class="form-row">
+    <div><strong>Customs Agent:</strong> {{ po.customs_agent_id and (agents|selectattr('id','equalto',po.customs_agent_id)|first).agent_name or '—' }}</div>
+    <div><strong>Duty Status:</strong> {{ po.duty_payment_status }}</div>
+    <div><strong>Estimated Duty:</strong> ${{ "%.2f"|format(po.estimated_duty_owed) if po.estimated_duty_owed else '—' }}</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Landed Cost Distribution</h2>
+  <p class="subtitle">
+    Enter what freight/duty was actually paid on receipt, then Apply to spread it across the received
+    lines by value and fold it into each part's moving-average unit cost (stock already on the shelf
+    keeps its old cost basis — only the newly-received units carry the landed extra).
+    {% if po.landed_cost_applied %}<strong>Already applied for this PO.</strong>{% endif %}
+  </p>
+  <form method="post" action="{{ url_for('purchase_orders.set_landed_cost', po_id=po.id) }}" class="form-row" style="align-items:flex-end;">
+    <div><label>Actual Freight Paid</label><input type="number" step="0.01" name="actual_freight_paid" value="{{ po.actual_freight_paid or 0 }}"></div>
+    <div><label>Actual Duty Paid</label><input type="number" step="0.01" name="actual_duty_paid" value="{{ po.actual_duty_paid or 0 }}"></div>
+    <div><label>Received Date</label><input type="date" name="received_date" value="{{ po.received_date or '' }}"></div>
+    <div><button class="btn" type="submit">Save Figures</button></div>
+  </form>
+  {% if not po.landed_cost_applied %}
+  <form method="post" action="{{ url_for('purchase_orders.apply_landed_cost_route', po_id=po.id) }}" style="margin-top:10px;" onsubmit="return confirm('Apply landed cost now? This updates part unit costs and can only be done once per PO.');">
+    <button class="btn btn-accent" type="submit">Apply Landed Cost</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

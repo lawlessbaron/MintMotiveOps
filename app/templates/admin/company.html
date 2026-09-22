@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Company — Administration{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Administration</h1></div>
+<div class="tabs">
+  <a href="{{ url_for('admin.index') }}">Overview</a>
+  <a class="active" href="{{ url_for('admin.company') }}">Company</a>
+  <a href="{{ url_for('admin.duties_shipping') }}">Duties &amp; Shipping</a>
+  <a href="{{ url_for('admin.numbering') }}">Numbering</a>
+  <a href="{{ url_for('admin.integrations') }}">Integrations</a>
+  <a href="{{ url_for('admin.security') }}">Security</a>
+  <a href="{{ url_for('admin.appearance') }}">Appearance</a>
+  <a href="{{ url_for('admin.audit_log') }}">Audit Log</a>
+  <a href="{{ url_for('admin.local_agent') }}">Local Agent</a>
+</div>
+
+<div class="card">
+  <h2>Company Profile &amp; Tax</h2>
+  <form method="post" enctype="multipart/form-data">
+    <div class="form-row"><div><label>Company Name</label><input name="company_name" value="{{ company.company_name or '' }}"></div><div><label>ABN</label><input name="abn" value="{{ company.abn or '' }}"></div></div>
+    <label>Address</label><textarea name="address">{{ company.address or '' }}</textarea>
+    <label>Logo</label><input type="file" name="logo" accept="image/*">
+    <div class="form-row">
+      <div><label>Default Currency</label><select name="default_currency"><option {{'selected' if company.default_currency=='AUD'}}>AUD</option><option {{'selected' if company.default_currency=='USD'}}>USD</option><option {{'selected' if company.default_currency=='EUR'}}>EUR</option></select></div>
+      <div><label>Default Margin %</label><input type="number" step="0.01" name="default_margin_pct" value="{{ company.default_margin_pct }}"></div>
+      <div><label>Default GST/Tax Rate %</label><input type="number" step="0.01" name="default_gst_rate_pct" value="{{ company.default_gst_rate_pct }}"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Default Client Payment Terms</label><select name="default_client_payment_term_id">{% for t in client_terms %}<option value="{{ t.id }}" {{ 'selected' if company.default_client_payment_term_id==t.id }}>{{ t.name }}</option>{% endfor %}</select></div>
+      <div><label>Default Supplier Payment Terms</label><select name="default_supplier_payment_term_id">{% for t in supplier_terms %}<option value="{{ t.id }}" {{ 'selected' if company.default_supplier_payment_term_id==t.id }}>{{ t.name }}</option>{% endfor %}</select></div>
+    </div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+    <h3>Packing Lists &amp; Reminders</h3>
+    <div class="form-row">
+      <div><label>Invoice Reminder Days</label><input type="number" name="invoice_reminder_days" value="{{ company.invoice_reminder_days }}"></div>
+    </div>
+    <p class="subtitle">Fields printed on packing/customs PDFs:</p>
+    {% for field, label in [('packing_include_weight','Weight'),('packing_include_dimensions','Dimensions'),('packing_include_value','Declared Value'),('packing_include_customs_description','Customs Description'),('packing_include_hs_code','Harmonised Code'),('packing_include_origin_country','Country of Origin')] %}
+    <div class="checkbox-row"><input type="checkbox" name="{{ field }}" id="{{ field }}" {{ 'checked' if company[field] }}><label for="{{ field }}" style="margin:0;">{{ label }}</label></div>
+    {% endfor %}
+    <button class="btn btn-accent" style="margin-top:14px;" type="submit">Save Company Settings</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Reference Lists</h2>
+  <p class="subtitle">Editable records consumed by operational pickers, pricing defaults, shipping and customs workflows.</p>
+  <div class="tabs" id="refListTabs">
+    {% for table, (label, has_margin) in ref_lists.items() %}
+    <a href="#{{ table }}" data-target="{{ table }}" class="{{ 'active' if loop.first }}" onclick="showRefList(event,'{{ table }}')">{{ label }}</a>
+    {% endfor %}
+  </div>
+  {% for table, (label, has_margin) in ref_lists.items() %}
+  <div id="panel-{{ table }}" class="ref-panel" style="display:{{ 'block' if loop.first else 'none' }};">
+    <div class="form-row" style="align-items:flex-end;">
+      <div>
+        <label>Select {{ label }}</label>
+        <select onchange="loadRefItem('{{ table }}', this.value)">
+          <option value="">— Add new option —</option>
+          {% for item in ref_list_items[table] %}
+          <option value="{{ item.id }}" {{ 'disabled' if not item.active }}>{{ item.name }}{% if not item.active %} (inactive){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <form method="post" action="{{ url_for('admin.ref_list_add', table=table) }}" id="add-{{ table }}" class="ref-edit-form" style="margin-top:12px;">
+      <div class="form-row">
+        <div><label>Name</label><input name="name" required></div>
+        {% if has_margin %}<div><label>Default Margin %</label><input type="number" step="0.01" name="default_margin_pct"></div>{% endif %}
+        <div><button class="btn btn-accent" type="submit">Add {{ label[:-1] if label.endswith('s') else label }}</button></div>
+      </div>
+    </form>
+    {% for item in ref_list_items[table] %}
+    <form method="post" action="{{ url_for('admin.ref_list_edit', table=table, item_id=item.id) }}" id="edit-{{ table }}-{{ item.id }}" class="ref-edit-form" style="display:none; margin-top:12px;">
+      <div class="form-row" style="align-items:flex-end;">
+        <div><label>Name</label><input name="name" value="{{ item.name }}" required></div>
+        {% if has_margin %}<div><label>Default Margin %</label><input type="number" step="0.01" name="default_margin_pct" value="{{ item.default_margin_pct or '' }}"></div>{% endif %}
+        <div class="checkbox-row" style="margin-top:0;"><input type="checkbox" name="active" id="active-{{ table }}-{{ item.id }}" {{ 'checked' if item.active }}><label for="active-{{ table }}-{{ item.id }}" style="margin:0;">Active</label></div>
+        <div><button class="btn btn-accent" type="submit">Save</button></div>
+      </div>
+    </form>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card" id="email-templates">
+  <h2>Email Templates</h2>
+  <p class="subtitle">Every automated email in the app pulls its starting subject/body from here, then still opens as an editable draft before sending.</p>
+  {% for t in email_templates %}
+  <details style="margin-bottom:10px;"><summary style="cursor:pointer; font-weight:600;">{{ t.template_name }} {% if not t.active %}<span class="badge">Inactive</span>{% endif %}</summary>
+    <form method="post" action="{{ url_for('admin.save_email_template', tpl_id=t.id) }}" style="margin-top:10px;">
+      <label>Subject</label><input name="subject" value="{{ t.subject }}">
+      <label>Body (merge fields: {ClientName}, {OrderNumber}, {KitName}, {BuildNumber})</label><textarea name="body" style="min-height:100px;">{{ t.body }}</textarea>
+      <div class="checkbox-row"><input type="checkbox" name="active" id="tpl-active-{{ t.id }}" {{ 'checked' if t.active }}><label for="tpl-active-{{ t.id }}" style="margin:0;">Active</label></div>
+      <button class="btn btn-accent btn-sm" style="margin-top:8px;" type="submit">Save Template</button>
+    </form>
+  </details>
+  {% endfor %}
+</div>
+
+<script>
+function showRefList(e, table) {
+  e.preventDefault();
+  document.querySelectorAll('.ref-panel').forEach(function(p){ p.style.display='none'; });
+  document.getElementById('panel-' + table).style.display = 'block';
+  document.querySelectorAll('#refListTabs a').forEach(function(a){ a.classList.remove('active'); });
+  e.target.classList.add('active');
+}
+function loadRefItem(table, id) {
+  document.querySelectorAll('#panel-' + table + ' .ref-edit-form').forEach(function(f){ f.style.display='none'; });
+  var target = id ? document.getElementById('edit-' + table + '-' + id) : document.getElementById('add-' + table);
+  if (target) target.style.display = '';
+}
+</script>
+{% endblock %}

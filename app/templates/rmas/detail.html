@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ rma.rma_number }} — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>{{ rma.rma_number }}</h1><div class="subtitle">{{ rma.build_number or 'No linked build' }} · {{ rma.client_name or 'No client' }}</div></div>
+  <span class="badge accent">{{ rma.status }}</span>
+</div>
+
+<div class="card">
+  <h2>Details</h2>
+  <p><strong>Reason:</strong> {{ rma.reason or '—' }}</p>
+  <p class="subtitle">Received {{ rma.received_date }}{% if rma.resolved_date %} · Resolved {{ rma.resolved_date }}{% endif %}</p>
+  {% if rma.status not in ['Resolved','Closed'] %}
+  <form method="post" action="{{ url_for('rmas.resolve', rma_id=rma.id) }}" class="form-row" style="align-items:flex-end; margin-top:12px;">
+    <div><label>Resolution</label>
+      <select name="resolution">
+        <option>Repaired</option><option>Replaced</option><option>Refunded</option><option>Scrapped</option>
+      </select>
+    </div>
+    <div style="flex:2;"><label>Notes</label><input name="notes"></div>
+    <div><button class="btn btn-accent" type="submit">Mark Resolved</button></div>
+  </form>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Teardown</h2>
+  <p class="subtitle">Log each component recovered from the unit: Restock returns the quantity to inventory, Scrap discards it. Process the teardown once all lines are entered to apply the Restock lines to stock.</p>
+  <table class="data-table">
+    <tr><th>Component</th><th>Qty</th><th>Disposition</th><th>Notes</th></tr>
+    {% for line in lines %}
+    <tr>
+      <td>{{ line.part_name or line.component_kit_name }}</td>
+      <td>{{ line.quantity }}</td>
+      <td><span class="badge {{ 'accent' if line.disposition=='Restock' }}">{{ line.disposition }}</span></td>
+      <td class="subtitle">{{ line.notes or '' }}</td>
+    </tr>
+    {% else %}<tr><td colspan="4" class="empty-state">No teardown lines yet.</td></tr>{% endfor %}
+  </table>
+  <form method="post" action="{{ url_for('rmas.add_teardown_line', rma_id=rma.id) }}" class="form-row" style="margin-top:12px; align-items:flex-end;">
+    <div><label>Part</label>
+      <select name="part_id">
+        {% if bom_parts %}<optgroup label="This build's BOM">{% for p in bom_parts %}<option value="{{ p.id }}">{{ p.part_name }} ({{ p.part_number }})</option>{% endfor %}</optgroup>{% endif %}
+        <optgroup label="All parts">{% for p in all_parts %}<option value="{{ p.id }}">{{ p.part_name }} ({{ p.part_number }})</option>{% endfor %}</optgroup>
+      </select>
+    </div>
+    <div style="max-width:100px;"><label>Qty</label><input type="number" name="quantity" value="1" min="1"></div>
+    <div><label>Disposition</label><select name="disposition"><option>Scrap</option><option>Restock</option></select></div>
+    <div style="flex:2;"><label>Notes</label><input name="notes"></div>
+    <div><button class="btn btn-accent" type="submit">Add Line</button></div>
+  </form>
+  {% if lines and rma.status == 'Received' %}
+  <form method="post" action="{{ url_for('rmas.process_teardown', rma_id=rma.id) }}" style="margin-top:14px;">
+    <button class="btn btn-accent" type="submit">Process Teardown — Apply Restock Lines to Inventory</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,101 @@
+import os
+import sqlite3
+from flask import Flask, g, session, redirect, url_for, request
+from flask.json.provider import DefaultJSONProvider
+from . import db as db_module
+
+
+class _Row_AwareJSONProvider(DefaultJSONProvider):
+    """Lets |tojson (used throughout the admin/quicklinks "pick one from a
+    dropdown, edit its real fields" screens) serialize sqlite3.Row objects
+    straight out of the database, by treating them like plain dicts."""
+
+    @staticmethod
+    def default(o):
+        if isinstance(o, sqlite3.Row):
+            return dict(o)
+        return DefaultJSONProvider.default(o)
+
+
+def create_app():
+    app = Flask(__name__, instance_relative_config=True)
+    app.json = _Row_AwareJSONProvider(app)
+    os.makedirs(app.instance_path, exist_ok=True)
+    database_url = os.environ.get("DATABASE_URL")
+    app.config.from_mapping(
+        SECRET_KEY=os.environ.get("SECRET_KEY", "dev-secret-change-me"),
+        DATABASE=os.path.join(app.instance_path, "mintmotive.db"),
+        # Set DATABASE_URL (e.g. postgresql://user:pass@host:5432/dbname) to
+        # use PostgreSQL instead of the default SQLite file — see
+        # POSTGRES_SETUP.md. Nothing else needs to change.
+        DATABASE_URL=database_url,
+        DB_BACKEND="postgres" if database_url else "sqlite",
+    )
+
+    db_module.init_db(app)
+    app.teardown_appcontext(db_module.close_db)
+
+    # ---- blueprints ----
+    from .blueprints import (
+        auth, dashboard, clients, parts, suppliers, sourcing, kits, builds,
+        sales_orders, purchase_orders, quotes, invoices, admin, documents,
+        quicklinks, assets, warehouse, analytics, public, search,
+        rmas, batches, workshop, procurement, financial, api,
+    )
+    app.register_blueprint(auth.bp)
+    app.register_blueprint(dashboard.bp)
+    app.register_blueprint(clients.bp)
+    app.register_blueprint(parts.bp)
+    app.register_blueprint(suppliers.bp)
+    app.register_blueprint(sourcing.bp)
+    app.register_blueprint(kits.bp)
+    app.register_blueprint(builds.bp)
+    app.register_blueprint(sales_orders.bp)
+    app.register_blueprint(purchase_orders.bp)
+    app.register_blueprint(quotes.bp)
+    app.register_blueprint(invoices.bp)
+    app.register_blueprint(admin.bp)
+    app.register_blueprint(documents.bp)
+    app.register_blueprint(quicklinks.bp)
+    app.register_blueprint(assets.bp)
+    app.register_blueprint(warehouse.bp)
+    app.register_blueprint(analytics.bp)
+    app.register_blueprint(public.bp)
+    app.register_blueprint(search.bp)
+    app.register_blueprint(rmas.bp)
+    app.register_blueprint(batches.bp)
+    app.register_blueprint(workshop.bp)
+    app.register_blueprint(procurement.bp)
+    app.register_blueprint(financial.bp)
+    app.register_blueprint(api.bp)
+
+    # ---- auth gate: everything except /login, /public/*, and /api/* (which
+    # authenticates the local hardware agent with its own X-API-Key instead
+    # of a browser session — see app/blueprints/api.py) requires a session user ----
+    @app.before_request
+    def require_login():
+        open_endpoints = {"auth.login", "static"}
+        if request.endpoint and (
+            request.endpoint in open_endpoints
+            or request.endpoint.startswith("public.")
+            or request.endpoint.startswith("api.")
+        ):
+            return
+        if "user_id" not in session:
+            return redirect(url_for("auth.login", next=request.path))
+
+    # ---- inject company settings / theme into every template ----
+    @app.context_processor
+    def inject_globals():
+        from . import db as dbm
+        conn = dbm.get_db()
+        company = conn.execute("SELECT * FROM company_settings WHERE id = 1").fetchone()
+        return {
+            "company": company,
+            "current_user": {
+                "name": session.get("user_name"),
+                "role": session.get("user_role"),
+            } if "user_id" in session else None,
+        }
+
+    return app

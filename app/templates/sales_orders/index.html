@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Sales Orders — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1>Sales Orders</h1></div><a class="btn btn-accent" href="{{ url_for('sales_orders.new') }}">+ New Sales Order</a></div>
+<div class="card">
+  {% if orders %}
+  <table class="data-table"><tr><th>Order</th><th>Client</th><th>Date</th><th>Status</th><th>Total</th></tr>
+  {% for o in orders %}
+  <tr><td><a class="row-link" href="{{ url_for('sales_orders.detail', order_id=o.id) }}">{{ o.order_number }}</a></td><td>{{ o.client_name }}</td><td>{{ o.order_date }}</td><td><span class="badge">{{ o.status }}</span></td><td>${{ "%.2f"|format(totals[o.id]) }}</td></tr>
+  {% endfor %}
+  </table>
+  {% else %}<div class="empty-state">No sales orders yet.</div>{% endif %}
+</div>
+{% endblock %}
