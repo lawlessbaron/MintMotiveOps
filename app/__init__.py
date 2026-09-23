@@ -57,6 +57,20 @@ def create_app():
     db_module.init_db(app)
     app.teardown_appcontext(db_module.close_db)
 
+    # One-time (idempotent) data import — see the module docstring in
+    # scripts/import_2026_09_alibaba_stock.py for why this runs here rather
+    # than as a manual step: this app has no reachable path to the
+    # production DB except through itself, so "run it once on production"
+    # means "run it once here, at boot." Every check inside is a SELECT
+    # before any INSERT, so this is a no-op on every boot after the first
+    # one actually creates anything. Never allowed to break app boot.
+    with app.app_context():
+        try:
+            from scripts.import_2026_09_alibaba_stock import run_import
+            run_import(db_module.get_db())
+        except Exception:
+            app.logger.warning("Alibaba stock import (scripts/import_2026_09_alibaba_stock.py) failed", exc_info=True)
+
     # ---- blueprints ----
     from .blueprints import (
         auth, dashboard, clients, parts, suppliers, sourcing, kits, builds,

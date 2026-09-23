@@ -58,7 +58,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app import create_app
+# create_app is only needed by main() (CLI use) — imported there, not at
+# module level, so app/__init__.py can import run_import() from this module
+# during its own create_app() call (see the self-heal hook there) without
+# tripping a circular import.
 from app.db import get_db, generate_number, receive_po_line, apply_landed_cost, now_str
 
 # Real "Sold by" company confirmed via an Alibaba order-detail screenshot.
@@ -249,6 +252,14 @@ def receive_and_land(db, po_id, shipment):
 
 
 def import_shipment(db, shipment, category_id):
+    """Returns True if this call actually changed anything, False if it was
+    a pure no-op — this runs on every single app-boot forever (see
+    app/__init__.py), so staying quiet when nothing changed matters: a
+    verbose print per part/shipment here would mean 40+ log lines on every
+    gunicorn worker restart, forever, long after this has anything left to
+    do. Only real changes get logged."""
+    changed = False
+
     # Parts are upserted unconditionally, even for a shipment whose PO
     # already exists — this is what lets a re-run pick up a newly-added
     # image (or any other part-level field) on parts created by an
@@ -271,8 +282,10 @@ def import_shipment(db, shipment, category_id):
                 (part_id, supplier_id, p["unit_cost"], shipment.get("lead_time_days"), shipment["source_url"]),
             )
         part_ids.append((part_id, p["qty"], p["unit_cost"]))
-        label = {"image-added": "image added ", True: "created     ", False: "exists      "}[created]
-        print(f"    {label} part {p['part_number']}: {p['part_name']}")
+        if created:
+            changed = True
+            label = "image added" if created == "image-added" else "created"
+            print(f"    {label} part {p['part_number']}: {p['part_name']}")
     db.commit()
 
     existing_po = db.execute(
@@ -287,9 +300,8 @@ def import_shipment(db, shipment, category_id):
         if shipment["received"] and existing_po["status"] not in ("Received", "Partially Received"):
             receive_and_land(db, existing_po["id"], shipment)
             print(f"  RECEIVED (was pending): {shipment['marker']}")
-        else:
-            print(f"  SKIP (PO already imported): {shipment['marker']}")
-        return
+            changed = True
+        return changed
 
     expected_delivery = None
     status = "Sent"
@@ -317,26 +329,52 @@ def import_shipment(db, shipment, category_id):
         print(f"  IMPORTED (received): {shipment['marker']} — PO created")
     else:
         print(f"  IMPORTED (in transit, not yet received): {shipment['marker']} — PO created")
+    return True
 
 
-def main():
-    app = create_app()
-    with app.app_context():
-        db = get_db()
-        electronics_id = db.execute("SELECT id FROM part_categories WHERE name = 'Electronics'").fetchone()
-        hardware_id = db.execute("SELECT id FROM part_categories WHERE name = 'Hardware'").fetchone()
-        electronics_id = electronics_id["id"] if electronics_id else None
-        hardware_id = hardware_id["id"] if hardware_id else None
+def run_import(db):
+    """The actual import, given an already-open db handle inside a live app
+    context. Called both by main() below (CLI use, its own app context) and
+    by app/__init__.py's create_app() (auto-applies on every boot, since
+    this can't reach the production DB from outside the running app at
+    all — see the module docstring).
 
-        for shipment in SHIPMENTS:
-            is_hardware = "knob" in shipment["marker"].lower()
-            category_id = hardware_id if is_hardware else electronics_id
-            print(f"Importing: {shipment['marker']}")
-            import_shipment(db, shipment, category_id)
+    Guarded on company_settings already existing: that's only true once
+    seed.py's own setup has fully committed, which — since seed.py calls
+    create_app() itself to get its db handle, and this hook runs inside
+    that very call — can't be true yet on the FIRST create_app() call of a
+    brand-new, never-seeded install (seed.py's company_settings insert
+    happens after create_app() returns). That's exactly the behavior
+    wanted: a fresh install for a different business shouldn't silently
+    inherit MintMotive's own Alibaba purchase history, and this defers the
+    import to the next boot after seeding — by which point part_categories
+    and numbering_sequences are guaranteed to exist too, avoiding a
+    same-process race against seed.py's own reference-data inserts."""
+    if not db.execute("SELECT 1 FROM company_settings WHERE id = 1").fetchone():
+        return
+    electronics_id = db.execute("SELECT id FROM part_categories WHERE name = 'Electronics'").fetchone()
+    hardware_id = db.execute("SELECT id FROM part_categories WHERE name = 'Hardware'").fetchone()
+    electronics_id = electronics_id["id"] if electronics_id else None
+    hardware_id = hardware_id["id"] if hardware_id else None
 
+    any_changes = False
+    for shipment in SHIPMENTS:
+        is_hardware = "knob" in shipment["marker"].lower()
+        category_id = hardware_id if is_hardware else electronics_id
+        if import_shipment(db, shipment, category_id):
+            any_changes = True
+
+    if any_changes:
         print("\nDone. Still pending (no data given yet): RP2040 Pico, DuPont jumper "
               "cables, MT3608 booster board, 1N4148 diodes — $11.22 shipping noted, "
               "no per-item price/qty yet.")
+
+
+def main():
+    from app import create_app
+    app = create_app()
+    with app.app_context():
+        run_import(get_db())
 
 
 if __name__ == "__main__":
