@@ -3,20 +3,41 @@
 {% block content %}
 <div class="page-header">
   <div><h1>Analytics</h1></div>
+  <details class="widget-manager">
+    <summary class="btn btn-sm" style="display:inline-flex; cursor:pointer;">Manage Widgets</summary>
+    <form method="post" action="{{ url_for('analytics.save_widgets') }}" class="card" style="position:absolute; right:0; z-index:10; width:260px; margin-top:8px;">
+      {% for wid, label in all_widgets %}
+      <div class="checkbox-row" style="margin-top: {{ '0' if loop.first else 'var(--sp-2)' }};">
+        <input type="checkbox" name="visible" value="{{ wid }}" id="wtoggle-{{ wid }}" {{ 'checked' if wid not in hidden_widgets }}>
+        <label for="wtoggle-{{ wid }}" style="margin:0;">{{ label }}</label>
+      </div>
+      {% endfor %}
+      <button class="btn btn-accent btn-sm" style="margin-top:var(--sp-3); width:100%;" type="submit">Save</button>
+    </form>
+  </details>
 </div>
 <div class="tabs">
   <a class="active" href="{{ url_for('analytics.index') }}">Analytics</a>
   <a href="{{ url_for('analytics.reports') }}">Reports</a>
 </div>
 
+{% if inventory_value is not none or avg_cycle_days is not none or outstanding_by_status %}
 <div class="stat-grid">
+  {% if 'inventory_value' not in hidden_widgets %}
   <div class="stat-tile"><div class="label">Inventory Value (Cost)</div><div class="value">${{ '%.2f' % inventory_value }}</div></div>
+  {% endif %}
+  {% if 'avg_cycle' not in hidden_widgets %}
   <div class="stat-tile"><div class="label">Avg Build Cycle Time</div><div class="value">{{ avg_cycle_days if avg_cycle_days is not none else '—' }}{{ ' days' if avg_cycle_days is not none }}</div></div>
+  {% endif %}
+  {% if 'outstanding_invoices' not in hidden_widgets %}
   {% for o in outstanding_by_status %}
   <div class="stat-tile"><div class="label">{{ o.status }} Invoices</div><div class="value">${{ '%.2f' % o.v }}<span style="font-size:13px; font-weight:400; color:var(--text-secondary);"> ({{ o.c }})</span></div></div>
   {% endfor %}
+  {% endif %}
 </div>
+{% endif %}
 
+{% if 'revenue_chart' not in hidden_widgets %}
 <div class="card">
   <h2>Revenue by Month (Paid Invoices, last 6 months)</h2>
   {% if revenue_by_month %}
@@ -29,7 +50,9 @@
   {% endfor %}
   {% else %}<div class="empty-state">No paid invoices yet.</div>{% endif %}
 </div>
+{% endif %}
 
+{% if 'top_kits' not in hidden_widgets %}
 <div class="card">
   <h2>Top Kits by Revenue</h2>
   {% if top_kits %}
@@ -42,7 +65,9 @@
   {% endfor %}
   {% else %}<div class="empty-state">No kit sales recorded yet.</div>{% endif %}
 </div>
+{% endif %}
 
+{% if 'build_stats' not in hidden_widgets %}
 <div class="card">
   <h2>Builds by Status</h2>
   <table class="data-table">
@@ -54,4 +79,121 @@
     {% endfor %}
   </table>
 </div>
+{% endif %}
+
+{% if 'currency_converter' not in hidden_widgets and converter %}
+<div class="card">
+  <h2>Currency Converter</h2>
+  <p class="subtitle">Live rates — not stored anywhere, this is a lookup only.{% if not converter.is_live %} <strong style="color:#b3261e;">Live lookup failed just now; showing the last fallback rate.</strong>{% endif %}</p>
+  <form method="get" class="form-row" style="align-items:flex-end;">
+    <div style="max-width:160px;"><label>Amount</label><input type="number" step="0.01" name="amount" value="{{ converter.amount }}"></div>
+    <div style="max-width:140px;">
+      <label>From</label>
+      <select name="base">
+        {% for c in converter.all_currencies %}<option value="{{ c }}" {{ 'selected' if c == converter.base }}>{{ c }}</option>{% endfor %}
+      </select>
+    </div>
+    <div style="max-width:160px;"><button class="btn btn-accent" type="submit">Convert</button></div>
+  </form>
+  <table class="data-table" style="margin-top:var(--sp-4);">
+    <tr><th>Currency</th><th>Value</th></tr>
+    {% for r in converter.results %}
+    <tr><td>{{ r.currency }}</td><td>{{ '%.2f' % r.value }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if 'fx_chart' not in hidden_widgets and fx_chart %}
+<div class="card chart-card">
+  <h2>Exchange Rate Chart — AUD vs Major Currencies (30 days)</h2>
+  {% if fx_chart.geometry %}
+  {% set g = fx_chart.geometry %}
+  <p class="subtitle">Indexed to day 1 = 100 so currencies at very different scales (e.g. AUD/JPY vs AUD/GBP) are comparable on one axis — hover for the actual rate on any day.{% if not fx_chart.is_live %} <strong style="color:#b3261e;">Live lookup failed; no history to show right now.</strong>{% endif %}</p>
+  <svg class="chart-svg" id="fxChartSvg" viewBox="0 0 {{ g.w }} {{ g.h }}" role="img" aria-label="AUD exchange rate index, last 30 days" style="width:100%; height:auto; display:block;">
+    {% for t in g.y_ticks %}
+    <line class="gridline" x1="{{ g.plot_left }}" y1="{{ t.y }}" x2="{{ g.plot_right }}" y2="{{ t.y }}"></line>
+    <text class="axis-label" x="{{ g.plot_left - 6 }}" y="{{ t.y + 3 }}" text-anchor="end">{{ t.label }}</text>
+    {% endfor %}
+    {% for l in g.x_labels %}
+    <text class="axis-label" x="{{ l.x }}" y="{{ g.plot_bottom + 16 }}" text-anchor="middle">{{ l.label }}</text>
+    {% endfor %}
+    {% for s in g.series %}
+    <path class="line-path" d="{{ s.path }}" stroke="{{ s.color }}"></path>
+    {% endfor %}
+    <line class="crosshair" id="fxCrosshair" x1="0" y1="{{ g.plot_top }}" x2="0" y2="{{ g.plot_bottom }}"></line>
+    {% for s in g.series %}
+    <circle class="hover-dot" id="fxDot-{{ s.currency }}" fill="{{ s.color }}" cx="0" cy="0"></circle>
+    {% endfor %}
+    <rect class="hover-col" x="{{ g.plot_left }}" y="{{ g.plot_top }}" width="{{ g.plot_right - g.plot_left }}" height="{{ g.plot_bottom - g.plot_top }}" id="fxHoverArea"></rect>
+  </svg>
+  <div class="chart-tooltip" id="fxTooltip"></div>
+  <div class="chart-legend">
+    {% for s in g.series %}
+    <span class="legend-item"><span class="legend-swatch" style="background:{{ s.color }};"></span>{{ s.currency }}</span>
+    {% endfor %}
+  </div>
+  <script>
+  (function () {
+    var points = {{ g.series | map(attribute='points') | list | tojson }};
+    var currencies = {{ g.series | map(attribute='currency') | list | tojson }};
+    var svg = document.getElementById('fxChartSvg');
+    var area = document.getElementById('fxHoverArea');
+    var crosshair = document.getElementById('fxCrosshair');
+    var tooltip = document.getElementById('fxTooltip');
+    var card = svg.closest('.chart-card');
+    if (!area || !points.length || !points[0].length) return;
+
+    function nearestIndex(mouseX) {
+      var best = 0, bestDist = Infinity;
+      for (var i = 0; i < points[0].length; i++) {
+        var d = Math.abs(points[0][i].x - mouseX);
+        if (d < bestDist) { bestDist = d; best = i; }
+      }
+      return best;
+    }
+
+    function show(evt) {
+      var rect = svg.getBoundingClientRect();
+      var scaleX = {{ g.w }} / rect.width;
+      var mouseX = (evt.clientX - rect.left) * scaleX;
+      var idx = nearestIndex(mouseX);
+      var rowsHtml = '';
+      var anchorX = null, anchorY = null;
+      currencies.forEach(function (cur, si) {
+        var pt = points[si][idx];
+        if (!pt) return;
+        var dot = document.getElementById('fxDot-' + cur);
+        dot.setAttribute('cx', pt.x); dot.setAttribute('cy', pt.y);
+        dot.classList.add('visible');
+        if (anchorX === null) { anchorX = pt.x; anchorY = pt.y; }
+        rowsHtml += '<div class="ct-row"><span class="ct-dot" style="background:' + dot.getAttribute('fill') + ';"></span>' +
+          cur + ': ' + (pt.rate !== null ? pt.rate.toFixed(4) : '—') + '</div>';
+      });
+      if (anchorX === null) return;
+      crosshair.setAttribute('x1', anchorX); crosshair.setAttribute('x2', anchorX);
+      crosshair.classList.add('visible');
+      tooltip.innerHTML = '<div class="ct-date">' + points[0][idx].date + '</div>' + rowsHtml;
+      var rect2 = card.getBoundingClientRect();
+      var svgRect = svg.getBoundingClientRect();
+      var pxX = svgRect.left - rect2.left + anchorX / scaleX;
+      var pxY = svgRect.top - rect2.top + anchorY / scaleX;
+      tooltip.style.left = pxX + 'px';
+      tooltip.style.top = pxY + 'px';
+      tooltip.classList.add('visible');
+    }
+    function hide() {
+      tooltip.classList.remove('visible');
+      crosshair.classList.remove('visible');
+      currencies.forEach(function (cur) { document.getElementById('fxDot-' + cur).classList.remove('visible'); });
+    }
+    area.addEventListener('mousemove', show);
+    area.addEventListener('mouseleave', hide);
+  })();
+  </script>
+  {% else %}
+  <div class="empty-state">Live exchange rate history isn't available right now — try again shortly.</div>
+  {% endif %}
+</div>
+{% endif %}
 {% endblock %}

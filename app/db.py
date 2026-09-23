@@ -331,6 +331,7 @@ CREATE TABLE IF NOT EXISTS applied_data_fixes (
 );
 ALTER TABLE users ADD COLUMN IF NOT EXISTS can_view_analytics INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS spending_limit REAL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS hidden_analytics_widgets TEXT;
 ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS requested_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS approval_status TEXT NOT NULL DEFAULT 'Not Required';
 ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS approved_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
@@ -377,6 +378,7 @@ def init_db(app):
     conn.executescript(_MIGRATIONS_SQLITE)
     _ensure_column_sqlite(conn, "users", "can_view_analytics", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column_sqlite(conn, "users", "spending_limit", "REAL")
+    _ensure_column_sqlite(conn, "users", "hidden_analytics_widgets", "TEXT")
     _ensure_column_sqlite(conn, "purchase_orders", "requested_by", "INTEGER REFERENCES users(id) ON DELETE SET NULL")
     _ensure_column_sqlite(conn, "purchase_orders", "approval_status", "TEXT NOT NULL DEFAULT 'Not Required'")
     _ensure_column_sqlite(conn, "purchase_orders", "approved_by", "INTEGER REFERENCES users(id) ON DELETE SET NULL")
