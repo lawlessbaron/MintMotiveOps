@@ -1,20 +1,21 @@
+{% import "_icons.html" as icons %}
 {% set bp = request.blueprint %}
 <div class="sidebar">
   <div class="brand">
-    <img src="/static/img/logo-mint-on-dark.svg" alt="MintMotive" onerror="this.style.display='none'">
+    <img src="{{ '/static/' + company.logo_path if company.logo_path else '/static/img/logo-mint-on-dark.svg' }}" alt="MintMotive" onerror="this.style.display='none'">
     <span>MintMotive Ops</span>
   </div>
   <nav>
-    <a class="nav-item {{ 'active' if bp=='dashboard' }}" href="{{ url_for('dashboard.index') }}">🏠 Dashboard</a>
-    <a class="nav-item {{ 'active' if bp=='sales_orders' }}" href="{{ url_for('sales_orders.index') }}">🧾 Sales Orders</a>
-    <a class="nav-item {{ 'active' if bp=='clients' }}" href="{{ url_for('clients.index') }}">👥 Clients</a>
-    <a class="nav-item {{ 'active' if bp=='quotes' }}" href="{{ url_for('quotes.index') }}">📄 Quotes</a>
-    <a class="nav-item {{ 'active' if bp=='invoices' }}" href="{{ url_for('invoices.index') }}">💳 Invoices</a>
-    <a class="nav-item {{ 'active' if bp=='kits' or bp=='builds' }}" href="{{ url_for('kits.index') }}">🛠 Kits &amp; Builds</a>
-    <a class="nav-item {{ 'active' if bp=='parts' }}" href="{{ url_for('parts.index') }}">📦 Inventory</a>
+    <a class="nav-item {{ 'active' if bp=='dashboard' }}" href="{{ url_for('dashboard.index') }}">{{ icons.icon('dashboard') }} Dashboard</a>
+    <a class="nav-item {{ 'active' if bp=='sales_orders' }}" href="{{ url_for('sales_orders.index') }}">{{ icons.icon('sales_orders') }} Sales Orders</a>
+    <a class="nav-item {{ 'active' if bp=='clients' }}" href="{{ url_for('clients.index') }}">{{ icons.icon('clients') }} Clients</a>
+    <a class="nav-item {{ 'active' if bp=='quotes' }}" href="{{ url_for('quotes.index') }}">{{ icons.icon('quotes') }} Quotes</a>
+    <a class="nav-item {{ 'active' if bp=='invoices' }}" href="{{ url_for('invoices.index') }}">{{ icons.icon('invoices') }} Invoices</a>
+    <a class="nav-item {{ 'active' if bp=='kits' or bp=='builds' }}" href="{{ url_for('kits.index') }}">{{ icons.icon('kits') }} Kits &amp; Builds</a>
+    <a class="nav-item {{ 'active' if bp=='parts' }}" href="{{ url_for('parts.index') }}">{{ icons.icon('inventory') }} Inventory</a>
 
     <div class="nav-group {{ 'open' if bp in ['workshop','batches','rmas'] }}" data-group="production">
-      <button type="button" class="nav-group-toggle">🏗 Production <span class="chev">▶</span></button>
+      <button type="button" class="nav-group-toggle">{{ icons.icon('production') }} Production <span class="chev">▶</span></button>
       <div class="nav-group-items">
         <a class="nav-item {{ 'active' if bp=='workshop' }}" href="{{ url_for('workshop.board') }}">Workshop Board</a>
         <a class="nav-item {{ 'active' if bp=='batches' }}" href="{{ url_for('batches.index') }}">Batch Runs</a>
@@ -23,7 +24,7 @@
     </div>
 
     <div class="nav-group {{ 'open' if bp in ['purchase_orders','suppliers','sourcing','procurement'] }}" data-group="purchasing">
-      <button type="button" class="nav-group-toggle">🛒 Purchasing <span class="chev">▶</span></button>
+      <button type="button" class="nav-group-toggle">{{ icons.icon('purchasing') }} Purchasing <span class="chev">▶</span></button>
       <div class="nav-group-items">
         <a class="nav-item {{ 'active' if bp=='purchase_orders' }}" href="{{ url_for('purchase_orders.index') }}">Purchase Orders</a>
         <a class="nav-item {{ 'active' if bp=='suppliers' }}" href="{{ url_for('suppliers.index') }}">Suppliers</a>
@@ -33,7 +34,7 @@
     </div>
 
     <div class="nav-group {{ 'open' if bp in ['warehouse','assets'] }}" data-group="warehouse">
-      <button type="button" class="nav-group-toggle">🏭 Warehouse <span class="chev">▶</span></button>
+      <button type="button" class="nav-group-toggle">{{ icons.icon('warehouse') }} Warehouse <span class="chev">▶</span></button>
       <div class="nav-group-items">
         <a class="nav-item {{ 'active' if bp=='warehouse' }}" href="{{ url_for('warehouse.index') }}">Warehouse</a>
         <a class="nav-item {{ 'active' if bp=='assets' }}" href="{{ url_for('assets.index') }}">Assets</a>
@@ -42,7 +43,7 @@
 
     {% if current_user.role == 'Owner' or current_user.can_view_analytics %}
     <div class="nav-group {{ 'open' if bp in ['analytics','financial'] }}" data-group="insights">
-      <button type="button" class="nav-group-toggle">📊 Insights <span class="chev">▶</span></button>
+      <button type="button" class="nav-group-toggle">{{ icons.icon('insights') }} Insights <span class="chev">▶</span></button>
       <div class="nav-group-items">
         <a class="nav-item {{ 'active' if bp=='analytics' and request.path.endswith('analytics') }}" href="{{ url_for('analytics.index') }}">Analytics</a>
         <a class="nav-item {{ 'active' if bp=='analytics' and request.path.endswith('reports') }}" href="{{ url_for('analytics.reports') }}">Reports</a>
@@ -56,7 +57,7 @@
     {% endif %}
 
     <div class="nav-group {{ 'open' if bp in ['documents','quicklinks'] }}" data-group="tools">
-      <button type="button" class="nav-group-toggle">🧰 Tools <span class="chev">▶</span></button>
+      <button type="button" class="nav-group-toggle">{{ icons.icon('tools') }} Tools <span class="chev">▶</span></button>
       <div class="nav-group-items">
         <a class="nav-item {{ 'active' if bp=='documents' }}" href="{{ url_for('documents.index') }}">Documents</a>
         <a class="nav-item {{ 'active' if bp=='quicklinks' }}" href="{{ url_for('quicklinks.index') }}">Labels &amp; Quick Links</a>
@@ -64,7 +65,7 @@
     </div>
 
     {% if current_user.role == 'Owner' %}
-    <a class="nav-item admin-item {{ 'active' if bp=='admin' }}" href="{{ url_for('admin.index') }}">⚙️ Administration</a>
+    <a class="nav-item admin-item {{ 'active' if bp=='admin' }}" href="{{ url_for('admin.index') }}">{{ icons.icon('admin') }} Administration</a>
     {% endif %}
   </nav>
 </div>

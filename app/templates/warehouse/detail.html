@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% import "_icons.html" as icons %}
 {% block title %}{{ location.name }} — Warehouse{% endblock %}
 {% block content %}
 <div class="page-header">
   <div><h1>{{ location.name }}</h1><div class="subtitle"><span class="badge accent">{{ location.type or '—' }}</span></div></div>
-  <a class="btn" href="{{ url_for('warehouse.index') }}">← Back to Warehouse</a>
+  <a class="btn" href="{{ url_for('warehouse.index') }}">{{ icons.icon('back') }} Back to Warehouse</a>
 </div>
 <div class="card">
   <h2>Parts stored here</h2>
