@@ -28,6 +28,10 @@ def _count_and_value_for_day(db, d):
     return orders, revenue
 
 
+def _month_start_str(d):
+    return d.replace(day=1).strftime("%Y-%m-%d 00:00:00")
+
+
 def _monthly_revenue(db, months=6):
     """Revenue per calendar month for the trailing N months, oldest first.
     Bucketed in Python rather than SQL date-trunc, which differs enough
@@ -82,6 +86,16 @@ def index():
             "SELECT COALESCE(SUM(l.quantity*l.unit_price),0) v FROM invoices i "
             "JOIN invoice_lines l ON l.invoice_id = i.id WHERE i.status IN ('Sent','Overdue')"
         ).fetchone()["v"],
+        # Inventory asset value at cost — quantity_on_hand includes reserved
+        # stock (it's still owned and on the shelf, just earmarked), unlike
+        # the "Available" figure used for reorder decisions elsewhere.
+        "stock_value": db.execute(
+            "SELECT COALESCE(SUM(quantity_on_hand * unit_cost),0) v FROM parts"
+        ).fetchone()["v"],
+        "expenses_this_month": db.execute(
+            "SELECT COALESCE(SUM(amount_ex_gst + gst_amount),0) v FROM expenses WHERE expense_date >= ?",
+            (_month_start_str(datetime.utcnow().date()),),
+        ).fetchone()["v"],
     }
 
     today = datetime.utcnow().date()
@@ -111,8 +125,16 @@ def index():
         "SELECT * FROM parts WHERE (quantity_on_hand - quantity_reserved) <= reorder_threshold "
         "ORDER BY (quantity_on_hand - quantity_reserved) ASC LIMIT 8"
     ).fetchall()
+    # What the flagged-low parts are worth on the shelf right now — makes
+    # the alert banner say something concrete ("$X across N parts") instead
+    # of just a bare count, same "everything to do with money" framing as
+    # the rest of this pass.
+    low_stock_value = db.execute(
+        "SELECT COALESCE(SUM(quantity_on_hand * unit_cost),0) v FROM parts "
+        "WHERE (quantity_on_hand - quantity_reserved) <= reorder_threshold"
+    ).fetchone()["v"]
     return render_template(
         "dashboard/index.html", stats=stats, trends=trends, revenue_chart=revenue_chart,
         revenue_chart_max=revenue_chart_max, recent_orders=recent_orders,
-        active_builds=active_builds, low_stock=low_stock,
+        active_builds=active_builds, low_stock=low_stock, low_stock_value=low_stock_value,
     )
