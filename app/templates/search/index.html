@@ -4,7 +4,7 @@
 <div class="page-header"><h1>Search results for "{{ q }}"</h1></div>
 
 {% if not q %}
-<div class="card"><div class="empty-state">Type something into the search bar above — parts, kits, clients, suppliers, and every order/quote/invoice/build number are all searched at once.</div></div>
+<div class="card"><div class="empty-state">Type something into the search bar above — parts, kits, clients, suppliers, assets, and every sales order/purchase order/quote/invoice/build/RMA/batch number are all searched at once.</div></div>
 {% elif total == 0 %}
 <div class="card"><div class="empty-state">No matches for "{{ q }}".</div></div>
 {% else %}
@@ -54,6 +54,30 @@
 {% if results.builds %}
 <div class="card"><h2>Builds</h2><table class="data-table"><tr><th>Build #</th><th>Serial #</th></tr>
 {% for r in results.builds %}<tr><td><a class="row-link" href="{{ url_for('builds.detail', build_id=r.id) }}">{{ r.build_number }}</a></td><td>{{ r.serial_number or '—' }}</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+
+{% if results.purchase_orders %}
+<div class="card"><h2>Purchase Orders</h2><table class="data-table"><tr><th>PO #</th></tr>
+{% for r in results.purchase_orders %}<tr><td><a class="row-link" href="{{ url_for('purchase_orders.detail', po_id=r.id) }}">{{ r.po_number }}</a></td></tr>{% endfor %}
+</table></div>
+{% endif %}
+
+{% if results.rmas %}
+<div class="card"><h2>RMAs</h2><table class="data-table"><tr><th>RMA #</th></tr>
+{% for r in results.rmas %}<tr><td><a class="row-link" href="{{ url_for('rmas.detail', rma_id=r.id) }}">{{ r.rma_number }}</a></td></tr>{% endfor %}
+</table></div>
+{% endif %}
+
+{% if results.batches %}
+<div class="card"><h2>Batch Runs</h2><table class="data-table"><tr><th>Batch #</th></tr>
+{% for r in results.batches %}<tr><td><a class="row-link" href="{{ url_for('batches.detail', batch_id=r.id) }}">{{ r.batch_number }}</a></td></tr>{% endfor %}
+</table></div>
+{% endif %}
+
+{% if results.assets %}
+<div class="card"><h2>Assets</h2><table class="data-table"><tr><th>Name</th></tr>
+{% for r in results.assets %}<tr><td><a class="row-link" href="{{ url_for('assets.detail', asset_id=r.id) }}">{{ r.asset_name }}</a></td></tr>{% endfor %}
 </table></div>
 {% endif %}
 

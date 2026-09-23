@@ -39,5 +39,17 @@ def index():
             "SELECT id, build_number, serial_number FROM builds WHERE build_number LIKE ? OR serial_number LIKE ? LIMIT 10",
             (like, like),
         ).fetchall()
+        results["purchase_orders"] = db.execute(
+            "SELECT id, po_number FROM purchase_orders WHERE po_number LIKE ? LIMIT 10", (like,)
+        ).fetchall()
+        results["rmas"] = db.execute(
+            "SELECT id, rma_number FROM rmas WHERE rma_number LIKE ? LIMIT 10", (like,)
+        ).fetchall()
+        results["batches"] = db.execute(
+            "SELECT id, batch_number FROM batch_runs WHERE batch_number LIKE ? LIMIT 10", (like,)
+        ).fetchall()
+        results["assets"] = db.execute(
+            "SELECT id, asset_name FROM assets WHERE asset_name LIKE ? LIMIT 10", (like,)
+        ).fetchall()
     total = sum(len(v) for v in results.values())
     return render_template("search/index.html", q=q, results=results, total=total)

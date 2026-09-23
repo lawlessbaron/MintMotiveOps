@@ -22,10 +22,11 @@
       </div>
     </div>
 
-    <div class="nav-group {{ 'open' if bp in ['purchase_orders','sourcing','procurement'] }}" data-group="purchasing">
+    <div class="nav-group {{ 'open' if bp in ['purchase_orders','suppliers','sourcing','procurement'] }}" data-group="purchasing">
       <button type="button" class="nav-group-toggle">🛒 Purchasing <span class="chev">▶</span></button>
       <div class="nav-group-items">
         <a class="nav-item {{ 'active' if bp=='purchase_orders' }}" href="{{ url_for('purchase_orders.index') }}">Purchase Orders</a>
+        <a class="nav-item {{ 'active' if bp=='suppliers' }}" href="{{ url_for('suppliers.index') }}">Suppliers</a>
         <a class="nav-item {{ 'active' if bp=='procurement' }}" href="{{ url_for('procurement.index') }}">Procurement Queue</a>
         <a class="nav-item {{ 'active' if bp=='sourcing' }}" href="{{ url_for('sourcing.index') }}">Sourcing Prospects</a>
       </div>
