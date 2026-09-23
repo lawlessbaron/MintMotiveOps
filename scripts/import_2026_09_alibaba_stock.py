@@ -25,10 +25,11 @@ What a shipment does after creation depends on its "received" flag:
   - received=False (still in transit): the PO and its lines are created
     and freight is recorded, but nothing is marked received and no landed
     cost is applied yet — quantity_on_hand stays 0. Once the shipment
-    physically arrives, receive it normally through Purchase Orders in
-    the app; that will file the expense and apply the already-recorded
-    freight correctly, dated to when you actually receive it rather than
-    to today.
+    physically arrives, either receive it normally through Purchase
+    Orders in the app, or just flip this shipment's received flag to
+    True here and re-run the script — it detects the PO already exists
+    and receives/lands it in place rather than re-creating anything,
+    which is how Pro Micro and the wire went from False to True below.
 
 Known gap: expense_date on the auto-filed GST expenses defaults to
 whenever this script is actually run (today), not the real order date —
@@ -116,8 +117,8 @@ SHIPMENTS = [
         "supplier_name": UNCONFIRMED_SUPPLIER,
         "supplier_notes": UNCONFIRMED_SUPPLIER_NOTES,
         "source_url": "https://www.alibaba.com/product-detail/Yonglisheng-100-Stock-Pro-Micro-ATmega32U4_1601537101019.html",
-        "received": False,  # "currently on the way" — 2-5 week lead time
-        "shipping_usd": None,  # not provided
+        "received": True,  # in hand now
+        "shipping_usd": None,  # still not provided — no landed-cost boost applied for this one
         "lead_time_days": 35,
         "parts": [
             dict(part_number="ALI-PROMICRO-32U4", part_name="Yonglisheng Pro Micro ATmega32U4-MU Type C, 5V/16MHz",
@@ -129,7 +130,7 @@ SHIPMENTS = [
         "supplier_name": "Guangzhou Renshi Electronics Co., Ltd.",
         "supplier_notes": "Confirmed seller — seen on the Alibaba order-detail page for this shipment.",
         "source_url": "https://www.alibaba.com/product-detail/Kit-in-Roll-1007-Electric-Wire_1601524908027.html",
-        "received": False,  # "currently on the way" — 2-5 week lead time, guaranteed delivery Sep 20 - Oct 7
+        "received": True,  # in hand now
         "shipping_usd": 11.34,
         "lead_time_days": 35,
         "parts": [
@@ -215,12 +216,32 @@ def get_or_create_part(db, part_number, part_name, unit_cost, category_id, suppl
     return cur.lastrowid, True
 
 
+def receive_and_land(db, po_id, shipment):
+    lines = db.execute(
+        "SELECT id, quantity_ordered FROM purchase_order_lines WHERE purchase_order_id = ?", (po_id,)
+    ).fetchall()
+    for line in lines:
+        receive_po_line(db, line["id"], line["quantity_ordered"])
+    if shipment["shipping_usd"]:
+        applied = apply_landed_cost(db, po_id)
+        print(f"    landed cost applied: {applied}")
+
+
 def import_shipment(db, shipment, category_id):
     existing_po = db.execute(
-        "SELECT id FROM purchase_orders WHERE notes LIKE ?", (shipment["marker"] + "%",)
+        "SELECT id, status FROM purchase_orders WHERE notes LIKE ?", (shipment["marker"] + "%",)
     ).fetchone()
     if existing_po:
-        print(f"  SKIP (already imported): {shipment['marker']}")
+        # Already created on a prior run. If it's now flagged received=True
+        # but wasn't yet (e.g. this shipment physically arrived since the
+        # last run), receive it now instead of silently skipping forever —
+        # this is what makes it safe to just flip a shipment's `received`
+        # flag and re-run, whether or not the earlier run already happened.
+        if shipment["received"] and existing_po["status"] not in ("Received", "Partially Received"):
+            receive_and_land(db, existing_po["id"], shipment)
+            print(f"  RECEIVED (was pending): {shipment['marker']}")
+        else:
+            print(f"  SKIP (already imported): {shipment['marker']}")
         return
 
     supplier_id = get_or_create_supplier(
@@ -267,14 +288,7 @@ def import_shipment(db, shipment, category_id):
     db.commit()
 
     if shipment["received"]:
-        lines = db.execute(
-            "SELECT id, quantity_ordered FROM purchase_order_lines WHERE purchase_order_id = ?", (po_id,)
-        ).fetchall()
-        for line in lines:
-            receive_po_line(db, line["id"], line["quantity_ordered"])
-        if shipment["shipping_usd"]:
-            applied = apply_landed_cost(db, po_id)
-            print(f"    landed cost applied: {applied}")
+        receive_and_land(db, po_id, shipment)
         print(f"  IMPORTED (received): {shipment['marker']} — PO created")
     else:
         print(f"  IMPORTED (in transit, not yet received): {shipment['marker']} — PO created")
