@@ -40,6 +40,7 @@
       </div>
     </div>
 
+    {% if current_user.role == 'Owner' or current_user.can_view_analytics %}
     <div class="nav-group {{ 'open' if bp in ['analytics','financial'] }}" data-group="insights">
       <button type="button" class="nav-group-toggle">📊 Insights <span class="chev">▶</span></button>
       <div class="nav-group-items">
@@ -52,6 +53,7 @@
         {% endif %}
       </div>
     </div>
+    {% endif %}
 
     <div class="nav-group {{ 'open' if bp in ['documents','quicklinks'] }}" data-group="tools">
       <button type="button" class="nav-group-toggle">🧰 Tools <span class="chev">▶</span></button>

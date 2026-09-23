@@ -295,8 +295,9 @@ def add_user():
         flash("A user with that email already exists.", "error")
         return redirect(url_for("admin.security"))
     db.execute(
-        "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)",
-        (f.get("name"), f.get("email"), generate_password_hash(f.get("password") or "changeme123"), f.get("role", "Workshop")),
+        "INSERT INTO users (name, email, password_hash, role, can_view_analytics) VALUES (?, ?, ?, ?, ?)",
+        (f.get("name"), f.get("email"), generate_password_hash(f.get("password") or "changeme123"),
+         f.get("role", "Workshop"), 1 if f.get("can_view_analytics") else 0),
     )
     db.commit()
     flash(f"User {f.get('name')} added.", "success")
@@ -307,18 +308,20 @@ def add_user():
 def edit_user(user_id):
     db = get_db()
     f = request.form
+    can_view_analytics = 1 if f.get("can_view_analytics") else 0
     if f.get("password"):
         db.execute(
-            "UPDATE users SET name=?, email=?, role=?, password_hash=? WHERE id=?",
-            (f.get("name"), f.get("email"), f.get("role"), generate_password_hash(f.get("password")), user_id),
+            "UPDATE users SET name=?, email=?, role=?, can_view_analytics=?, password_hash=? WHERE id=?",
+            (f.get("name"), f.get("email"), f.get("role"), can_view_analytics,
+             generate_password_hash(f.get("password")), user_id),
         )
     else:
         db.execute(
-            "UPDATE users SET name=?, email=?, role=? WHERE id=?",
-            (f.get("name"), f.get("email"), f.get("role"), user_id),
+            "UPDATE users SET name=?, email=?, role=?, can_view_analytics=? WHERE id=?",
+            (f.get("name"), f.get("email"), f.get("role"), can_view_analytics, user_id),
         )
     db.commit()
-    flash("User updated.", "success")
+    flash("User updated. If they're logged in, changes take effect next time they log in.", "success")
     return redirect(url_for("admin.security"))
 
 

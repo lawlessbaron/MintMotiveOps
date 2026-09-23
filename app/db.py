@@ -298,7 +298,16 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
     used INTEGER NOT NULL DEFAULT 0,
     created_at TEXT DEFAULT to_char(CURRENT_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')
 );
+ALTER TABLE users ADD COLUMN IF NOT EXISTS can_view_analytics INTEGER NOT NULL DEFAULT 0;
 """
+
+
+def _ensure_column_sqlite(conn, table, column, coltype_sql):
+    """SQLite's ADD COLUMN IF NOT EXISTS needs 3.35+ (2021) — check via
+    PRAGMA table_info instead so this self-heal works on any version."""
+    cols = [row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+    if column not in cols:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {coltype_sql}")
 
 
 def init_db(app):
@@ -314,6 +323,7 @@ def init_db(app):
         with open(schema_path) as f:
             conn.executescript(f.read())
     conn.executescript(_MIGRATIONS_SQLITE)
+    _ensure_column_sqlite(conn, "users", "can_view_analytics", "INTEGER NOT NULL DEFAULT 0")
     conn.commit()
     conn.close()
     return fresh

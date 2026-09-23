@@ -25,6 +25,7 @@ def login():
         session["user_id"] = user["id"]
         session["user_name"] = user["name"]
         session["user_role"] = user["role"]
+        session["can_view_analytics"] = bool(user["can_view_analytics"])
         next_url = request.args.get("next") or url_for("dashboard.index")
         return redirect(next_url)
     return render_template("auth/login.html")

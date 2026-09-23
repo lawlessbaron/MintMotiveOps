@@ -747,6 +747,10 @@ CREATE TABLE users (
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'Owner' CHECK (role IN ('Owner','Workshop')),
+    -- Per-user override: a Workshop account with this set can view
+    -- Analytics & Reports (otherwise Owner-only) without being made a full
+    -- Owner. Owners always have access regardless of this flag.
+    can_view_analytics INTEGER NOT NULL DEFAULT 0,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 

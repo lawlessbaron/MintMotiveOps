@@ -104,17 +104,29 @@ def create_app():
     # but no route ever checked it, so any authenticated Workshop account
     # had the same access as an Owner to user management, security
     # settings, integrations, and every financial figure in the business.
-    # Administration and Financial are now Owner-only; everything
-    # operational (orders, builds, inventory, warehouse, analytics) stays
-    # open to both roles. ----
+    # Administration, Financial, and Analytics are now Owner-only by
+    # default; everything else operational (orders, builds, inventory,
+    # warehouse) stays open to both roles. Analytics has one escape hatch:
+    # a per-user can_view_analytics flag (Administration > Security) an
+    # Owner can grant to a specific Workshop account without making them a
+    # full Owner — see admin.add_user/edit_user. ----
     OWNER_ONLY_BLUEPRINTS = {"admin", "financial"}
+    ANALYTICS_BLUEPRINT = "analytics"
 
     @app.before_request
     def require_owner_role():
-        if request.blueprint in OWNER_ONLY_BLUEPRINTS and session.get("user_role") != "Owner":
-            if "user_id" not in session:
-                return  # require_login already handles the redirect-to-login case
+        if "user_id" not in session:
+            return  # require_login already handles the redirect-to-login case
+        role = session.get("user_role")
+        bp_name = request.blueprint
+        if bp_name in OWNER_ONLY_BLUEPRINTS and role != "Owner":
             abort(403, description="Administration and Financial pages are restricted to Owner accounts.")
+        if bp_name == ANALYTICS_BLUEPRINT and role != "Owner" and not session.get("can_view_analytics"):
+            abort(
+                403,
+                description="Analytics & Reports are restricted to Owner accounts, or a Workshop account "
+                "an Owner has specifically granted access to (Administration > Security).",
+            )
 
     # ---- CSRF protection: every state-changing browser request must carry
     # the same token stashed in its (signed, httponly) session cookie. The
@@ -175,6 +187,7 @@ def create_app():
             "current_user": {
                 "name": session.get("user_name"),
                 "role": session.get("user_role"),
+                "can_view_analytics": bool(session.get("can_view_analytics")),
             } if "user_id" in session else None,
         }
 
