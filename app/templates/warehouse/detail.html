@@ -22,4 +22,31 @@
   </table>
   {% else %}<div class="empty-state">No parts assigned to this location yet. Set a part's Bin Location from its detail page.</div>{% endif %}
 </div>
+
+<div class="card">
+  <h2>Delete this location</h2>
+  {% if parts %}
+  <p class="subtitle">
+    <strong>{{ parts|length }} part(s)</strong> are still assigned here — move them to another location (or unassign them)
+    before you can delete <strong>{{ location.name }}</strong>. This is a safety check: the database would otherwise
+    silently unassign every part below with no warning if the location were removed out from under them.
+  </p>
+  <form method="post" action="{{ url_for('warehouse.move_parts', location_id=location.id) }}" class="form-row" style="align-items:flex-end;">
+    <div>
+      <label>Move all {{ parts|length }} part(s) to</label>
+      <select name="destination_location_id">
+        <option value="">— Unassign (no location) —</option>
+        {% for l in other_locations %}<option value="{{ l.id }}">{{ l.name }} ({{ l.type or '—' }})</option>{% endfor %}
+      </select>
+    </div>
+    <div><button class="btn btn-accent" type="submit">Move Parts</button></div>
+  </form>
+  {% else %}
+  <p class="subtitle">No parts are assigned here — safe to delete.</p>
+  <form method="post" action="{{ url_for('warehouse.delete_location', location_id=location.id) }}"
+        onsubmit="return confirm('Delete {{ location.name }}? This can\'t be undone.');">
+    <button class="btn" style="color:#b3261e; border-color:#b3261e;" type="submit">Delete Location</button>
+  </form>
+  {% endif %}
+</div>
 {% endblock %}

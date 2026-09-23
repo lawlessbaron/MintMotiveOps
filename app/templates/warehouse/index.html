@@ -20,7 +20,18 @@
       <td class="subtitle">{% if l.baseplate_name %}{{ l.baseplate_name }} ({{ l.grid_x }},{{ l.grid_y }}){% else %}—{% endif %}</td>
       <td>{{ l.part_count }}</td>
       <td>{{ l.total_qty }}</td>
-      <td><a href="#" onclick="toggleLoc(event, {{ l.id }})">Edit</a></td>
+      <td>
+        <a href="#" onclick="toggleLoc(event, {{ l.id }})">Edit</a>
+        {% if l.part_count == 0 %}
+        &nbsp;·&nbsp;
+        <form method="post" action="{{ url_for('warehouse.delete_location', location_id=l.id) }}" style="display:inline;"
+              onsubmit="return confirm('Delete {{ l.name }}? This can\'t be undone.');">
+          <button type="submit" class="link-btn" style="color:#b3261e;">Delete</button>
+        </form>
+        {% else %}
+        &nbsp;·&nbsp;<a href="{{ url_for('warehouse.detail', location_id=l.id) }}" class="subtitle">{{ l.part_count }} part(s) — move to delete</a>
+        {% endif %}
+      </td>
     </tr>
     <tr id="edit-loc-{{ l.id }}" style="display:none;"><td colspan="6">
       <form method="post" action="{{ url_for('warehouse.edit_location', location_id=l.id) }}">
