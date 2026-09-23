@@ -1,5 +1,8 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
-from ..db import get_db, generate_number, receive_po_line, apply_landed_cost
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort
+from ..db import (
+    get_db, generate_number, receive_po_line, apply_landed_cost, now_str,
+    spending_approval_needed, purchase_order_total,
+)
 
 bp = Blueprint("purchase_orders", __name__, url_prefix="/purchase-orders")
 
@@ -8,7 +11,9 @@ bp = Blueprint("purchase_orders", __name__, url_prefix="/purchase-orders")
 def index():
     db = get_db()
     pos = db.execute(
-        "SELECT po.*, s.supplier_name FROM purchase_orders po JOIN suppliers s ON s.id=po.supplier_id ORDER BY po.order_date DESC"
+        "SELECT po.*, s.supplier_name, ru.name AS requested_by_name FROM purchase_orders po "
+        "JOIN suppliers s ON s.id=po.supplier_id LEFT JOIN users ru ON ru.id=po.requested_by "
+        "ORDER BY po.order_date DESC"
     ).fetchall()
     return render_template("purchase_orders/index.html", pos=pos)
 
@@ -21,8 +26,10 @@ def new():
         f = request.form
         number = generate_number("Purchase Order")
         cur = db.execute(
-            "INSERT INTO purchase_orders (po_number, supplier_id, expected_delivery_date, notes) VALUES (?,?,?,?)",
-            (number, f["supplier_id"], f.get("expected_delivery_date") or None, f.get("notes")),
+            "INSERT INTO purchase_orders (po_number, supplier_id, expected_delivery_date, notes, requested_by) "
+            "VALUES (?,?,?,?,?)",
+            (number, f["supplier_id"], f.get("expected_delivery_date") or None, f.get("notes"),
+             session.get("user_id")),
         )
         db.commit()
         flash("Purchase order created — add line items below.", "success")
@@ -34,7 +41,10 @@ def new():
 def detail(po_id):
     db = get_db()
     po = db.execute(
-        "SELECT po.*, s.supplier_name FROM purchase_orders po JOIN suppliers s ON s.id=po.supplier_id WHERE po.id=?",
+        "SELECT po.*, s.supplier_name, ru.name AS requested_by_name, au.name AS approved_by_name "
+        "FROM purchase_orders po JOIN suppliers s ON s.id=po.supplier_id "
+        "LEFT JOIN users ru ON ru.id=po.requested_by LEFT JOIN users au ON au.id=po.approved_by "
+        "WHERE po.id=?",
         (po_id,),
     ).fetchone()
     if po is None:
@@ -54,11 +64,61 @@ def detail(po_id):
 def update_status(po_id):
     db = get_db()
     status = request.form["status"]
+    po = db.execute("SELECT * FROM purchase_orders WHERE id=?", (po_id,)).fetchone()
+    if po is None:
+        flash("Purchase order not found.", "error")
+        return redirect(url_for("purchase_orders.index"))
+
+    # Draft -> anything else is the actual commitment to the supplier —
+    # that's the point a spending limit has to gate, not creation or
+    # editing lines, which don't commit the business to anything yet.
+    if po["status"] == "Draft" and status != "Draft" and po["approval_status"] != "Approved":
+        total = purchase_order_total(db, po_id)
+        if spending_approval_needed(db, po["requested_by"], total):
+            db.execute(
+                "UPDATE purchase_orders SET approval_status='Pending' WHERE id=?", (po_id,)
+            )
+            db.commit()
+            flash(
+                f"This PO (${total:,.2f}) is over your spending limit — sent for Owner approval "
+                f"instead of being marked {status}. It'll stay in Draft until approved.",
+                "error",
+            )
+            return redirect(url_for("purchase_orders.detail", po_id=po_id))
+
     db.execute("UPDATE purchase_orders SET status=? WHERE id=?", (status, po_id))
-    if status == "Cancelled":
-        pass
     db.commit()
     flash("Status updated.", "success")
+    return redirect(url_for("purchase_orders.detail", po_id=po_id))
+
+
+@bp.route("/<int:po_id>/approval/approve", methods=["POST"])
+def approve(po_id):
+    if session.get("user_role") != "Owner":
+        abort(403, description="Only Owners can approve a purchase order that's over the requester's spending limit.")
+    db = get_db()
+    db.execute(
+        "UPDATE purchase_orders SET approval_status='Approved', approved_by=?, approved_at=?, approval_notes=NULL "
+        "WHERE id=?",
+        (session.get("user_id"), now_str(), po_id),
+    )
+    db.commit()
+    flash("Approved — it can now be moved out of Draft.", "success")
+    return redirect(url_for("purchase_orders.detail", po_id=po_id))
+
+
+@bp.route("/<int:po_id>/approval/reject", methods=["POST"])
+def reject(po_id):
+    if session.get("user_role") != "Owner":
+        abort(403, description="Only Owners can reject a purchase order that's over the requester's spending limit.")
+    db = get_db()
+    db.execute(
+        "UPDATE purchase_orders SET approval_status='Rejected', approved_by=?, approved_at=?, approval_notes=? "
+        "WHERE id=?",
+        (session.get("user_id"), now_str(), request.form.get("approval_notes"), po_id),
+    )
+    db.commit()
+    flash("Rejected — it'll stay in Draft. The requester can revise it and resubmit.", "success")
     return redirect(url_for("purchase_orders.detail", po_id=po_id))
 
 

@@ -10,6 +10,7 @@
   <div class="stat-tile"><div class="label">Outstanding ($)</div><div class="value">${{ "%.2f"|format(stats.outstanding_value) }}</div></div>
   <div class="stat-tile"><div class="label">Low / Reorder Stock</div><div class="value">{{ stats.low_stock_parts }}</div></div>
   <div class="stat-tile"><div class="label">Total Clients</div><div class="value">{{ stats.total_clients }}</div></div>
+  <div class="stat-tile{{ ' pending-alert' if stats.pending_po_approvals }}"><div class="label">Pending PO Approvals</div><div class="value">{{ stats.pending_po_approvals }}</div></div>
 </div>
 
 <div class="form-row">

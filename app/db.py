@@ -299,6 +299,12 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
     created_at TEXT DEFAULT to_char(CURRENT_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')
 );
 ALTER TABLE users ADD COLUMN IF NOT EXISTS can_view_analytics INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS spending_limit REAL;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS requested_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS approval_status TEXT NOT NULL DEFAULT 'Not Required';
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS approved_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS approved_at TEXT;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS approval_notes TEXT;
 """
 
 
@@ -324,6 +330,12 @@ def init_db(app):
             conn.executescript(f.read())
     conn.executescript(_MIGRATIONS_SQLITE)
     _ensure_column_sqlite(conn, "users", "can_view_analytics", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column_sqlite(conn, "users", "spending_limit", "REAL")
+    _ensure_column_sqlite(conn, "purchase_orders", "requested_by", "INTEGER REFERENCES users(id) ON DELETE SET NULL")
+    _ensure_column_sqlite(conn, "purchase_orders", "approval_status", "TEXT NOT NULL DEFAULT 'Not Required'")
+    _ensure_column_sqlite(conn, "purchase_orders", "approved_by", "INTEGER REFERENCES users(id) ON DELETE SET NULL")
+    _ensure_column_sqlite(conn, "purchase_orders", "approved_at", "TEXT")
+    _ensure_column_sqlite(conn, "purchase_orders", "approval_notes", "TEXT")
     conn.commit()
     conn.close()
     return fresh
@@ -434,6 +446,27 @@ def default_payment_term(kind):
     col = "default_client_payment_term_id" if kind == "client" else "default_supplier_payment_term_id"
     row = db.execute(f"SELECT {col} AS pt FROM company_settings WHERE id = 1").fetchone()
     return row["pt"] if row else None
+
+
+def spending_approval_needed(db, user_id, amount):
+    """True if this user's spending limit requires Owner approval before
+    the given $ amount can actually be committed (see
+    purchase_orders.update_status). A NULL/unset limit means unlimited —
+    every Owner, and any Workshop account an Owner hasn't restricted from
+    Administration > Security."""
+    if not amount or not user_id:
+        return False
+    user = db.execute("SELECT role, spending_limit FROM users WHERE id=?", (user_id,)).fetchone()
+    if user is None or user["role"] == "Owner" or user["spending_limit"] is None:
+        return False
+    return amount > user["spending_limit"]
+
+
+def purchase_order_total(db, po_id):
+    return db.execute(
+        "SELECT COALESCE(SUM(quantity_ordered * unit_cost), 0) t FROM purchase_order_lines "
+        "WHERE purchase_order_id=?", (po_id,)
+    ).fetchone()["t"]
 
 
 # ---------------------------------------------------------------------------

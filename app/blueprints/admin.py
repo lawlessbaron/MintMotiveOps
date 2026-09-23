@@ -295,9 +295,11 @@ def add_user():
         flash("A user with that email already exists.", "error")
         return redirect(url_for("admin.security"))
     db.execute(
-        "INSERT INTO users (name, email, password_hash, role, can_view_analytics) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO users (name, email, password_hash, role, can_view_analytics, spending_limit) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
         (f.get("name"), f.get("email"), generate_password_hash(f.get("password") or "changeme123"),
-         f.get("role", "Workshop"), 1 if f.get("can_view_analytics") else 0),
+         f.get("role", "Workshop"), 1 if f.get("can_view_analytics") else 0,
+         float(f["spending_limit"]) if f.get("spending_limit") else None),
     )
     db.commit()
     flash(f"User {f.get('name')} added.", "success")
@@ -309,16 +311,18 @@ def edit_user(user_id):
     db = get_db()
     f = request.form
     can_view_analytics = 1 if f.get("can_view_analytics") else 0
+    spending_limit = float(f["spending_limit"]) if f.get("spending_limit") else None
     if f.get("password"):
         db.execute(
-            "UPDATE users SET name=?, email=?, role=?, can_view_analytics=?, password_hash=? WHERE id=?",
-            (f.get("name"), f.get("email"), f.get("role"), can_view_analytics,
+            "UPDATE users SET name=?, email=?, role=?, can_view_analytics=?, spending_limit=?, "
+            "password_hash=? WHERE id=?",
+            (f.get("name"), f.get("email"), f.get("role"), can_view_analytics, spending_limit,
              generate_password_hash(f.get("password")), user_id),
         )
     else:
         db.execute(
-            "UPDATE users SET name=?, email=?, role=?, can_view_analytics=? WHERE id=?",
-            (f.get("name"), f.get("email"), f.get("role"), can_view_analytics, user_id),
+            "UPDATE users SET name=?, email=?, role=?, can_view_analytics=?, spending_limit=? WHERE id=?",
+            (f.get("name"), f.get("email"), f.get("role"), can_view_analytics, spending_limit, user_id),
         )
     db.commit()
     flash("User updated. If they're logged in, changes take effect next time they log in.", "success")

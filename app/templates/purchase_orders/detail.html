@@ -19,6 +19,42 @@
   </div>
 </div>
 
+{% if po.approval_status == 'Pending' %}
+<div class="card" style="border-color:#b3261e;">
+  <h2 style="color:#b3261e; margin-top:0;">⚠ Awaiting Owner Approval</h2>
+  <p class="subtitle">
+    {{ po.requested_by_name or 'The requester' }} tried to move this PO out of Draft, but its total
+    (${{ "%.2f"|format(total) }}) is over their spending limit. It stays in Draft until an Owner approves
+    or rejects it here.
+  </p>
+  {% if current_user.role == 'Owner' %}
+  <div style="display:flex; gap:8px;">
+    <form method="post" action="{{ url_for('purchase_orders.approve', po_id=po.id) }}">
+      <button class="btn btn-accent btn-sm" type="submit">Approve</button>
+    </form>
+    <form method="post" action="{{ url_for('purchase_orders.reject', po_id=po.id) }}" style="display:flex; gap:6px;">
+      <input name="approval_notes" placeholder="Reason (optional)">
+      <button class="btn btn-sm" style="color:#b3261e; border-color:#b3261e;" type="submit">Reject</button>
+    </form>
+  </div>
+  {% else %}
+  <p class="subtitle">Only an Owner can approve or reject this.</p>
+  {% endif %}
+</div>
+{% elif po.approval_status == 'Rejected' %}
+<div class="card" style="border-color:#6a6a6a;">
+  <h2 style="margin-top:0;">Rejected</h2>
+  <p class="subtitle">
+    Rejected by {{ po.approved_by_name or '—' }} on {{ po.approved_at }}{% if po.approval_notes %}: {{ po.approval_notes }}{% endif %}.
+    Trying to send it again will re-submit it for approval.
+  </p>
+</div>
+{% elif po.approval_status == 'Approved' %}
+<div class="card" style="border-color:var(--accent);">
+  <p class="subtitle" style="margin:0;">✓ Approved by {{ po.approved_by_name or '—' }} on {{ po.approved_at }} — clear to send.</p>
+</div>
+{% endif %}
+
 <div class="card">
   <h2>Line Items — Partial Receiving</h2>
   <table class="data-table"><tr><th>Part</th><th>Ordered</th><th>Received</th><th>Unit Cost</th><th>Line Total</th><th>Receive</th></tr>

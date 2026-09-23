@@ -21,6 +21,9 @@ def index():
             "SELECT COUNT(*) c FROM parts WHERE (quantity_on_hand - quantity_reserved) <= reorder_threshold"
         ).fetchone()["c"],
         "total_clients": db.execute("SELECT COUNT(*) c FROM clients").fetchone()["c"],
+        "pending_po_approvals": db.execute(
+            "SELECT COUNT(*) c FROM purchase_orders WHERE approval_status = 'Pending'"
+        ).fetchone()["c"],
         "outstanding_value": db.execute(
             "SELECT COALESCE(SUM(l.quantity*l.unit_price),0) v FROM invoices i "
             "JOIN invoice_lines l ON l.invoice_id = i.id WHERE i.status IN ('Sent','Overdue')"

@@ -2,11 +2,32 @@
 {% block title %}Purchase Orders — MintMotive Ops{% endblock %}
 {% block content %}
 <div class="page-header"><div><h1>Purchase Orders</h1></div><a class="btn btn-accent" href="{{ url_for('purchase_orders.new') }}">+ New PO</a></div>
+{% set pending = pos|selectattr('approval_status', 'equalto', 'Pending')|list %}
+{% if pending %}
+<div class="card" style="border-color:#b3261e;">
+  <h2 style="color:#b3261e; margin-top:0;">⚠ {{ pending|length }} Purchase Order{{ 's' if pending|length != 1 }} awaiting approval</h2>
+  <p class="subtitle">Over the requester's spending limit — can't be sent to the supplier until an Owner approves or rejects.</p>
+  <table class="data-table"><tr><th>PO</th><th>Supplier</th><th>Requested By</th></tr>
+  {% for po in pending %}
+  <tr><td><a class="row-link" href="{{ url_for('purchase_orders.detail', po_id=po.id) }}">{{ po.po_number }}</a></td><td>{{ po.supplier_name }}</td><td>{{ po.requested_by_name or '—' }}</td></tr>
+  {% endfor %}
+  </table>
+</div>
+{% endif %}
 <div class="card">
   {% if pos %}
-  <table class="data-table"><tr><th>PO</th><th>Supplier</th><th>Date</th><th>Status</th><th>Duty</th></tr>
+  <table class="data-table"><tr><th>PO</th><th>Supplier</th><th>Date</th><th>Status</th><th>Duty</th><th>Approval</th></tr>
   {% for po in pos %}
-  <tr><td><a class="row-link" href="{{ url_for('purchase_orders.detail', po_id=po.id) }}">{{ po.po_number }}</a></td><td>{{ po.supplier_name }}</td><td>{{ po.order_date }}</td><td><span class="badge">{{ po.status }}</span></td><td>{{ po.duty_payment_status }}</td></tr>
+  <tr>
+    <td><a class="row-link" href="{{ url_for('purchase_orders.detail', po_id=po.id) }}">{{ po.po_number }}</a></td>
+    <td>{{ po.supplier_name }}</td><td>{{ po.order_date }}</td><td><span class="badge">{{ po.status }}</span></td><td>{{ po.duty_payment_status }}</td>
+    <td>
+      {% if po.approval_status == 'Pending' %}<span class="badge" style="background:#b3261e; color:#fff;">Pending</span>
+      {% elif po.approval_status == 'Approved' %}<span class="badge accent">Approved</span>
+      {% elif po.approval_status == 'Rejected' %}<span class="badge" style="background:#6a6a6a; color:#fff;">Rejected</span>
+      {% else %}<span class="subtitle">—</span>{% endif %}
+    </td>
+  </tr>
   {% endfor %}
   </table>
   {% else %}<div class="empty-state">No purchase orders yet.</div>{% endif %}

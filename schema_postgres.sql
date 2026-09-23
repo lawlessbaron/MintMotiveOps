@@ -506,6 +506,15 @@ CREATE TABLE purchase_orders (
     landed_cost_applied INTEGER NOT NULL DEFAULT 0,
     received_date TEXT,
     notes TEXT,
+    -- Spending limits & approvals: set when the PO is created; checked
+    -- against the requester's users.spending_limit the moment someone
+    -- tries to move it out of Draft (i.e. actually commit it to the
+    -- supplier) — see purchase_orders.update_status.
+    requested_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    approval_status TEXT NOT NULL DEFAULT 'Not Required' CHECK (approval_status IN ('Not Required','Pending','Approved','Rejected')),
+    approved_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    approved_at TEXT,
+    approval_notes TEXT,
     created_at TEXT DEFAULT to_char(CURRENT_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')
 );
 
@@ -749,6 +758,11 @@ CREATE TABLE users (
     -- Analytics & Reports (otherwise Owner-only) without being made a full
     -- Owner. Owners always have access regardless of this flag.
     can_view_analytics INTEGER NOT NULL DEFAULT 0,
+    -- NULL = no limit (every Owner, and any Workshop account an Owner
+    -- hasn't restricted). A number caps the $ value of a Purchase Order
+    -- this user can send to a supplier without Owner approval first —
+    -- see purchase_orders.approval_status below.
+    spending_limit REAL,
     created_at TEXT DEFAULT to_char(CURRENT_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')
 );
 
