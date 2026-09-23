@@ -328,24 +328,30 @@ def test_sync(name):
     elif name == "Stripe":
         if stripe_client.is_configured():
             status = "Active"
-            result = "STRIPE_SECRET_KEY is set for this instance — Checkout Sessions and the /webhook/stripe endpoint are live. This does not call the Stripe API; it only confirms the key is present in the environment."
+            source = "the STRIPE_SECRET_KEY environment variable" if os.environ.get("STRIPE_SECRET_KEY") else "the Stripe fields saved below"
+            result = (
+                f"A Stripe secret key is set, sourced from {source} — Checkout Sessions and the "
+                f"/webhook/stripe endpoint are live. This does not call the Stripe API; it only confirms "
+                f"the key is present."
+            )
         else:
             status = "Inactive"
-            result = "STRIPE_SECRET_KEY is not set in this environment — add it (and STRIPE_WEBHOOK_SECRET) in your deployment's environment variables, then re-run Test Sync."
+            result = "No Stripe secret key is set — add one below, or as a STRIPE_SECRET_KEY environment variable, then re-run Test Sync."
     elif name == "Email (SMTP)":
         if email_client.is_configured():
             status = "Active"
+            source = "the SMTP_HOST/SMTP_USER/SMTP_PASSWORD environment variables" if os.environ.get("SMTP_HOST") else "the SMTP fields saved below"
             result = (
-                "SMTP_HOST/SMTP_USER/SMTP_PASSWORD are set — password reset codes and PO approval "
-                "notifications send for real. This does not send a test email; it only confirms the "
-                "credentials are present in the environment."
+                f"SMTP is configured, sourced from {source} — password reset codes and PO approval "
+                f"notifications send for real. This does not send a test email; it only confirms the "
+                f"credentials are present."
             )
         else:
             status = "Inactive"
             result = (
-                "SMTP_HOST/SMTP_USER/SMTP_PASSWORD are not set in this environment — password reset codes "
-                "and approval notifications are only logged server-side, never emailed. Set them (see "
-                ".env.example) then re-run Test Sync."
+                "No SMTP credentials are set — password reset codes and approval notifications are only "
+                "logged server-side, never emailed. Set them below, or as SMTP_HOST/SMTP_USER/"
+                "SMTP_PASSWORD environment variables, then re-run Test Sync."
             )
     else:
         result = "No test defined for this integration."
