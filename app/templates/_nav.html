@@ -2,7 +2,7 @@
 {% set bp = request.blueprint %}
 <div class="sidebar">
   <div class="brand">
-    <img src="/static/img/logo-mint-on-dark.svg" alt="MintMotive" onerror="this.style.display='none'">
+    <img src="{{ '/static/' + company.logo_path if company.logo_path else '/static/img/logo-mint-on-dark.svg' }}" alt="MintMotive" onerror="this.style.display='none'">
     <span>MintMotive Ops</span>
   </div>
   <nav>
