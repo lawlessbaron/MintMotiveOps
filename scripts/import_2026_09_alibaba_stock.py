@@ -31,6 +31,16 @@ What a shipment does after creation depends on its "received" flag:
     and receives/lands it in place rather than re-creating anything,
     which is how Pro Micro and the wire went from False to True below.
 
+Currency: every price below is the raw USD figure Alibaba quoted. Every
+dollar figure elsewhere in this app (invoices, expenses, GST/BAS,
+parts.unit_cost) is implicitly AUD, so these get converted at the moment
+they're actually written to the database — via app/currency.py, which does
+a live USD->AUD lookup — not displayed as if $2.19 USD were $2.19 AUD. A
+one-time correction (_fix_alibaba_currency_to_aud, called at the top of
+run_import) deletes and recreates every row this script had already
+created before this fix existed, since those were stored in raw USD by
+mistake; ordinary re-runs after that are unaffected.
+
 Known gap: expense_date on the auto-filed GST expenses defaults to
 whenever this script is actually run (today), not the real order date —
 exact order dates weren't available for these. If any of these shipments
@@ -63,6 +73,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # during its own create_app() call (see the self-heal hook there) without
 # tripping a circular import.
 from app.db import get_db, generate_number, receive_po_line, apply_landed_cost, now_str
+from app import currency
 
 # Real "Sold by" company confirmed via an Alibaba order-detail screenshot.
 # Where it wasn't (most of these — order pages weren't screenshotted), we
@@ -78,6 +89,11 @@ UNCONFIRMED_SUPPLIER_NOTES = (
     "and either rename this supplier or split it out, then repoint the parts."
 )
 
+# Every shipment here is USD-quoted (Alibaba's default) — unit_cost and
+# shipping_usd below are the raw figures Alibaba showed, converted to AUD
+# at creation time (see get_or_create_part/import_shipment). A shipment
+# quoted in some other currency would need its own "currency" key; absent
+# one, USD is assumed since that's every shipment so far.
 SHIPMENTS = [
     {
         "marker": "[ALIBABA-IMPORT] Toowei waterproof toggle switches",
@@ -205,6 +221,23 @@ SHIPMENTS = [
 ]
 
 
+def _convert_cached(rate_cache, amount, from_currency, label):
+    """Converts via currency.convert(), but only ever fetches a given
+    currency's live rate once per run_import() call (rate_cache is created
+    fresh there and threaded through) — ~35 parts/shipments each doing
+    their own blocking network round-trip would be the difference between
+    an instant boot and one slow enough to trip a platform's health-check
+    timeout, all to look up the exact same same-day rate 35 times over."""
+    if amount is None:
+        return None
+    if from_currency not in rate_cache:
+        rate_cache[from_currency] = currency.get_rate(from_currency)
+    rate, is_live = rate_cache[from_currency]
+    if not is_live:
+        print(f"    WARNING: live {from_currency}->AUD rate lookup failed for {label}, used fallback rate")
+    return round(amount * rate, 4)
+
+
 def get_or_create_supplier(db, name, notes, source_url):
     row = db.execute("SELECT id FROM suppliers WHERE supplier_name = ?", (name,)).fetchone()
     if row:
@@ -224,9 +257,13 @@ def get_or_create_supplier(db, name, notes, source_url):
     return cur.lastrowid
 
 
-def get_or_create_part(db, part_number, part_name, unit_cost, category_id, supplier_id, image_path):
+def get_or_create_part(db, part_number, part_name, unit_cost_source, source_currency, category_id, supplier_id, image_path, rate_cache):
+    """Returns (part_id, unit_cost_aud, created) — unit_cost_aud is the
+    authoritative AUD figure either way, so callers never need to convert
+    currency themselves: reused as-is for this part's parts.unit_cost,
+    part_suppliers.supplier_cost, and purchase_order_lines.unit_cost."""
     row = db.execute(
-        "SELECT id, product_image_path FROM parts WHERE part_number = ?", (part_number,)
+        "SELECT id, product_image_path, unit_cost FROM parts WHERE part_number = ?", (part_number,)
     ).fetchone()
     if row:
         # Upgrade path: a part created by an earlier run (before this
@@ -236,15 +273,16 @@ def get_or_create_part(db, part_number, part_name, unit_cost, category_id, suppl
         if image_path and not row["product_image_path"]:
             db.execute("UPDATE parts SET product_image_path = ? WHERE id = ?", (image_path, row["id"]))
             db.commit()
-            return row["id"], "image-added"
-        return row["id"], False
+            return row["id"], row["unit_cost"], "image-added"
+        return row["id"], row["unit_cost"], False
+    unit_cost_aud = _convert_cached(rate_cache, unit_cost_source, source_currency, part_number)
     cur = db.execute(
         "INSERT INTO parts (part_name, part_number, category_id, unit_cost, preferred_supplier_id, "
         "product_image_path, label_link_type, created_at) VALUES (?,?,?,?,?,?,?,?)",
-        (part_name, part_number, category_id, unit_cost, supplier_id, image_path, "Custom URL", now_str()),
+        (part_name, part_number, category_id, unit_cost_aud, supplier_id, image_path, "Custom URL", now_str()),
     )
     db.commit()
-    return cur.lastrowid, True
+    return cur.lastrowid, unit_cost_aud, True
 
 
 def receive_and_land(db, po_id, shipment):
@@ -258,7 +296,7 @@ def receive_and_land(db, po_id, shipment):
         print(f"    landed cost applied: {applied}")
 
 
-def import_shipment(db, shipment, category_id):
+def import_shipment(db, shipment, category_id, rate_cache):
     """Returns True if this call actually changed anything, False if it was
     a pure no-op — this runs on every single app-boot forever (see
     app/__init__.py), so staying quiet when nothing changed matters: a
@@ -274,10 +312,12 @@ def import_shipment(db, shipment, category_id):
     supplier_id = get_or_create_supplier(
         db, shipment["supplier_name"], shipment["supplier_notes"], shipment["source_url"]
     )
+    source_currency = shipment.get("currency", "USD")
     part_ids = []
     for p in shipment["parts"]:
-        part_id, created = get_or_create_part(
-            db, p["part_number"], p["part_name"], p["unit_cost"], category_id, supplier_id, p.get("image")
+        part_id, unit_cost_aud, created = get_or_create_part(
+            db, p["part_number"], p["part_name"], p["unit_cost"], source_currency,
+            category_id, supplier_id, p.get("image"), rate_cache
         )
         supplier_part_number = p.get("supplier_part_number")
         link = db.execute(
@@ -288,7 +328,7 @@ def import_shipment(db, shipment, category_id):
             db.execute(
                 "INSERT INTO part_suppliers (part_id, supplier_id, supplier_part_number, supplier_cost, "
                 "lead_time_days, source_url, preferred) VALUES (?,?,?,?,?,?,1)",
-                (part_id, supplier_id, supplier_part_number, p["unit_cost"],
+                (part_id, supplier_id, supplier_part_number, unit_cost_aud,
                  shipment.get("lead_time_days"), shipment["source_url"]),
             )
         elif (supplier_part_number and not link["supplier_part_number"]) or not link["source_url"]:
@@ -303,7 +343,7 @@ def import_shipment(db, shipment, category_id):
             )
             changed = True
             print(f"    backfilled supplier link for part {p['part_number']}")
-        part_ids.append((part_id, p["qty"], p["unit_cost"]))
+        part_ids.append((part_id, p["qty"], unit_cost_aud))
         if created:
             changed = True
             label = "image added" if created == "image-added" else "created"
@@ -327,12 +367,13 @@ def import_shipment(db, shipment, category_id):
 
     expected_delivery = None
     status = "Sent"
+    freight_aud = _convert_cached(rate_cache, shipment["shipping_usd"], source_currency, f"{shipment['marker']} freight")
     cur = db.execute(
         "INSERT INTO purchase_orders (po_number, supplier_id, status, expected_delivery_date, "
         "actual_freight_paid, notes) VALUES (?,?,?,?,?,?)",
         (
             generate_number("Purchase Order"), supplier_id, status, expected_delivery,
-            shipment["shipping_usd"], f"{shipment['marker']} — {shipment['source_url']}",
+            freight_aud, f"{shipment['marker']} — {shipment['source_url']}",
         ),
     )
     db.commit()
@@ -352,6 +393,59 @@ def import_shipment(db, shipment, category_id):
     else:
         print(f"  IMPORTED (in transit, not yet received): {shipment['marker']} — PO created")
     return True
+
+
+def _fix_alibaba_currency_to_aud(db):
+    """One-time correction: every run of this script before this fix
+    existed stored the raw Alibaba USD figures directly as parts.unit_cost
+    — but that column (and part_suppliers.supplier_cost, and
+    purchase_orders.actual_freight_paid) is implicitly AUD everywhere else
+    in this app, so those numbers were wrong from the very first import,
+    not just newly wrong. There's no per-row "this was USD" marker to
+    convert in place, so instead: delete every row this script created and
+    let the normal loop below recreate them fresh — now converted to AUD
+    at creation time, the same as everything else this script makes from
+    here on.
+
+    Tracked in applied_data_fixes so it only ever runs once. If it can't
+    complete cleanly — e.g. one of these parts has since been added to a
+    Kit's BOM, which the database's own foreign key will refuse to let
+    this DELETE through — it's skipped with a warning instead of leaving
+    a half torn-down state, and the fix marker is NOT recorded, so it'll
+    retry on the next boot rather than being silently abandoned. Either
+    way the normal import loop below still runs this same call, so a
+    failure here never blocks it."""
+    if db.execute(
+        "SELECT 1 FROM applied_data_fixes WHERE fix_name = 'alibaba-currency-to-aud-2026-09'"
+    ).fetchone():
+        return
+    try:
+        po_ids = [r["id"] for r in db.execute(
+            "SELECT id FROM purchase_orders WHERE notes LIKE '[ALIBABA-IMPORT]%'"
+        ).fetchall()]
+        part_ids = [r["id"] for r in db.execute(
+            "SELECT id FROM parts WHERE part_number LIKE 'ALI-%'"
+        ).fetchall()]
+        had_data_to_fix = bool(po_ids or part_ids)
+        if po_ids:
+            placeholders = ",".join("?" for _ in po_ids)
+            db.execute(f"DELETE FROM expenses WHERE related_purchase_order_id IN ({placeholders})", tuple(po_ids))
+            db.execute(f"DELETE FROM purchase_order_lines WHERE purchase_order_id IN ({placeholders})", tuple(po_ids))
+            db.execute(f"DELETE FROM purchase_orders WHERE id IN ({placeholders})", tuple(po_ids))
+        if part_ids:
+            placeholders = ",".join("?" for _ in part_ids)
+            db.execute(f"DELETE FROM part_suppliers WHERE part_id IN ({placeholders})", tuple(part_ids))
+            db.execute(f"DELETE FROM parts WHERE id IN ({placeholders})", tuple(part_ids))
+        db.execute(
+            "INSERT INTO applied_data_fixes (fix_name, applied_at) VALUES ('alibaba-currency-to-aud-2026-09', ?)",
+            (now_str(),),
+        )
+        db.commit()
+        if had_data_to_fix:
+            print("Currency fix: cleared previously-imported Alibaba data (was stored as raw USD) "
+                  "— recreating in AUD below.")
+    except Exception as e:
+        print(f"Currency fix could not run cleanly ({e}) — skipping for now, normal import continues unaffected.")
 
 
 def run_import(db):
@@ -374,16 +468,20 @@ def run_import(db):
     same-process race against seed.py's own reference-data inserts."""
     if not db.execute("SELECT 1 FROM company_settings WHERE id = 1").fetchone():
         return
+    _fix_alibaba_currency_to_aud(db)
     electronics_id = db.execute("SELECT id FROM part_categories WHERE name = 'Electronics'").fetchone()
     hardware_id = db.execute("SELECT id FROM part_categories WHERE name = 'Hardware'").fetchone()
     electronics_id = electronics_id["id"] if electronics_id else None
     hardware_id = hardware_id["id"] if hardware_id else None
 
+    # One rate per currency for this whole call, not one per part/shipment
+    # — see _convert_cached's docstring.
+    rate_cache = {}
     any_changes = False
     for shipment in SHIPMENTS:
         is_hardware = "knob" in shipment["marker"].lower()
         category_id = hardware_id if is_hardware else electronics_id
-        if import_shipment(db, shipment, category_id):
+        if import_shipment(db, shipment, category_id, rate_cache):
             any_changes = True
 
     if any_changes:
