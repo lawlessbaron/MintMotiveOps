@@ -45,7 +45,14 @@ def company():
     db = get_db()
     if request.method == "POST":
         f = request.form
-        logo_path = save_upload(request.files.get("logo"), "company")
+        logo_file = request.files.get("logo")
+        logo_path = save_upload(logo_file, "company")
+        if logo_file and logo_file.filename and not logo_path:
+            flash(
+                f"Logo NOT saved — \"{logo_file.filename}\" isn't a supported image type "
+                "(PNG, JPG, GIF, WEBP, BMP, SVG). Everything else below was saved.",
+                "error",
+            )
         extra = ", logo_path=?" if logo_path else ""
         args = [f.get("company_name"), f.get("abn"), f.get("address"), f.get("default_currency", "AUD"),
                 float(f.get("default_margin_pct") or 0), float(f.get("default_gst_rate_pct") or 0),

@@ -2,7 +2,7 @@ import os
 import uuid
 from flask import current_app
 
-IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp", "bmp"}
+IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"}
 
 # "Documents" covers everything people actually attach in this app: office
 # paperwork, CAD/Inventor mechanical design files, and Arduino/embedded

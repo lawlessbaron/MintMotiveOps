@@ -19,7 +19,14 @@
   <form method="post" enctype="multipart/form-data">
     <div class="form-row"><div><label>Company Name</label><input name="company_name" value="{{ company.company_name or '' }}"></div><div><label>ABN</label><input name="abn" value="{{ company.abn or '' }}"></div></div>
     <label>Address</label><textarea name="address">{{ company.address or '' }}</textarea>
-    <label>Logo</label><input type="file" name="logo" accept="image/*">
+    <label>Logo</label>
+    {% if company.logo_path %}
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+      <img src="/static/{{ company.logo_path }}" alt="Current logo" style="height:40px; max-width:160px; object-fit:contain; background:var(--page-bg); border-radius:var(--r-sm); padding:4px;">
+      <span class="subtitle" style="margin:0;">Current logo — used in the sidebar and on quotes/invoices. Upload a new file below to replace it.</span>
+    </div>
+    {% endif %}
+    <input type="file" name="logo" accept=".png,.jpg,.jpeg,.gif,.webp,.bmp,.svg,image/*">
     <div class="form-row">
       <div><label>Default Currency</label><select name="default_currency"><option {{'selected' if company.default_currency=='AUD'}}>AUD</option><option {{'selected' if company.default_currency=='USD'}}>USD</option><option {{'selected' if company.default_currency=='EUR'}}>EUR</option></select></div>
       <div><label>Default Margin %</label><input type="number" step="0.01" name="default_margin_pct" value="{{ company.default_margin_pct }}"></div>
