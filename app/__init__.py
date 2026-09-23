@@ -199,4 +199,33 @@ def create_app():
             } if "user_id" in session else None,
         }
 
+    # ---- error pages — deliberately standalone (app/templates/errors/error.html
+    # doesn't extend base.html or touch the database), so they still render
+    # correctly when the thing that's broken IS the database. A 502 from the
+    # proxy (the process never came up at all) never reaches these — that's
+    # a startup crash, not something a Flask error handler can catch. ----
+    def _error_page(code, title, message):
+        from flask import render_template
+        return render_template("errors/error.html", code=code, title=title, message=message), code
+
+    @app.errorhandler(400)
+    def bad_request(e):
+        return _error_page(400, "Bad Request", e.description or "That request couldn't be processed — refresh the page and try again.")
+
+    @app.errorhandler(403)
+    def forbidden(e):
+        return _error_page(403, "Access Denied", e.description or "You don't have permission to view this page.")
+
+    @app.errorhandler(404)
+    def not_found(e):
+        return _error_page(404, "Page Not Found", "That page doesn't exist, or the link is out of date.")
+
+    @app.errorhandler(413)
+    def too_large(e):
+        return _error_page(413, "File Too Large", "That upload is over the 25MB limit — try a smaller file.")
+
+    @app.errorhandler(500)
+    def server_error(e):
+        return _error_page(500, "Something Went Wrong", "An unexpected error occurred. It's been logged — try again in a moment.")
+
     return app

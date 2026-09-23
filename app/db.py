@@ -261,6 +261,11 @@ def get_db():
             )
             raw.row_factory = sqlite3.Row
             raw.execute("PRAGMA foreign_keys = ON")
+            # Same reasoning as init_db's busy_timeout — gunicorn's workers
+            # each hold their own connection against the one SQLite file, so
+            # two concurrent requests writing at once should wait briefly
+            # for each other rather than one throwing "database is locked".
+            raw.execute("PRAGMA busy_timeout = 5000")
             g.db = SQLiteConnection(raw)
     return g.db
 
@@ -346,6 +351,14 @@ def init_db(app):
     fresh = not os.path.exists(db_path)
     conn = sqlite3.connect(db_path)
     conn.execute("PRAGMA foreign_keys = ON")
+    # Gunicorn runs multiple worker processes, each calling init_db() once
+    # at startup against the same SQLite file. Without a busy_timeout, two
+    # workers' self-heal ALTER TABLE calls landing at the same moment fail
+    # immediately with "database is locked" instead of one just waiting a
+    # few hundred ms for the other — an unhandled exception here crashes
+    # that worker's boot, which is exactly the kind of thing that shows up
+    # as a 502 (Render's proxy can't reach a process that never came up).
+    conn.execute("PRAGMA busy_timeout = 5000")
     if fresh:
         with open(schema_path) as f:
             conn.executescript(f.read())
