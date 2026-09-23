@@ -37,6 +37,17 @@ exact order dates weren't available for these. If any of these shipments
 need to land in a specific BAS period, adjust the expense date under
 Administration/Financial > Expenses after running this.
 
+Product photos: each part's `image` key is a path under app/static/ —
+these are real static assets checked into the repo (app/static/img/parts/),
+NOT app/static/uploads/ (that folder is gitignored, runtime-only, and
+never reaches production via git). Photos were cropped from the Alibaba
+listing screenshots themselves. A part missing a photo (aluminum knobs,
+the EC12 encoder — no screenshot file was available for those) just gets
+product_image_path left NULL; add an `image` key and re-run once one
+exists, same upgrade mechanism as the receive-on-reflip above — re-running
+fills in a missing photo on an already-created part without touching
+anything else about it.
+
 Still missing entirely (no price/qty/photos given yet) — add a new
 SHIPMENTS entry once that lands: RP2040 Pico, DuPont jumper cables,
 MT3608 booster board, 1N4148 diodes (one bundled order, $11.22 shipping
@@ -74,15 +85,15 @@ SHIPMENTS = [
         "shipping_usd": 54.18,
         "parts": [
             dict(part_number="ALI-T501AT", part_name="Toowei T501AT Waterproof Toggle Switch (ON-OFF)",
-                 qty=5, unit_cost=2.19),
+                 qty=5, unit_cost=2.19, image="img/parts/ali-toowei-toggle.png"),
             dict(part_number="ALI-T501BT", part_name="Toowei T501BT Waterproof Toggle Switch (ON-ON)",
-                 qty=5, unit_cost=2.38),
+                 qty=5, unit_cost=2.38, image="img/parts/ali-toowei-toggle.png"),
             dict(part_number="ALI-T501CT", part_name="Toowei T501CT Waterproof Toggle Switch (ON-OFF-ON)",
-                 qty=5, unit_cost=2.53),
+                 qty=5, unit_cost=2.53, image="img/parts/ali-toowei-toggle.png"),
             dict(part_number="ALI-T501FT", part_name="Toowei T501FT Waterproof Toggle Switch ((ON)-OFF)",
-                 qty=5, unit_cost=2.98),
+                 qty=5, unit_cost=2.98, image="img/parts/ali-toowei-toggle.png"),
             dict(part_number="ALI-T501MT", part_name="Toowei T501MT Waterproof Toggle Switch ((ON)-OFF-(ON))",
-                 qty=5, unit_cost=3.27),
+                 qty=5, unit_cost=3.27, image="img/parts/ali-toowei-toggle.png"),
         ],
     },
     {
@@ -95,7 +106,7 @@ SHIPMENTS = [
         "parts": [
             dict(part_number="ALI-LEDCOVER-RED",
                  part_name="Illuminated LED Toggle Switch Cover with Lock (Missile Flick Cover) — Red",
-                 qty=20, unit_cost=0.33),
+                 qty=20, unit_cost=0.33, image="img/parts/ali-led-cover.png"),
         ],
     },
     {
@@ -108,7 +119,7 @@ SHIPMENTS = [
         "parts": [
             dict(part_number=f"ALI-PB19-{color.upper()}",
                  part_name=f"19mm Short Push Button Switch, 6V — {color}",
-                 qty=4, unit_cost=3.57)
+                 qty=4, unit_cost=3.57, image=f"img/parts/ali-pb19-{color.lower()}.png")
             for color in ["Red", "Blue", "White", "Yellow", "Green", "Orange"]
         ],
     },
@@ -122,7 +133,7 @@ SHIPMENTS = [
         "lead_time_days": 35,
         "parts": [
             dict(part_number="ALI-PROMICRO-32U4", part_name="Yonglisheng Pro Micro ATmega32U4-MU Type C, 5V/16MHz",
-                 qty=20, unit_cost=3.44),
+                 qty=20, unit_cost=3.44, image="img/parts/ali-promicro.png"),
         ],
     },
     {
@@ -135,17 +146,17 @@ SHIPMENTS = [
         "lead_time_days": 35,
         "parts": [
             dict(part_number="ALI-WIRE-BLUE", part_name="Kit in Roll 1007 Electric Wire 22AWG 10m — Blue",
-                 qty=1, unit_cost=1.10),
+                 qty=1, unit_cost=1.10, image="img/parts/ali-wire-blue.png"),
             dict(part_number="ALI-WIRE-BLACK", part_name="Kit in Roll 1007 Electric Wire 22AWG 10m — Black",
-                 qty=3, unit_cost=1.10),
+                 qty=3, unit_cost=1.10, image="img/parts/ali-wire-black.png"),
             dict(part_number="ALI-WIRE-WHITE", part_name="Kit in Roll 1007 Electric Wire 22AWG 10m — White",
-                 qty=1, unit_cost=1.10),
+                 qty=1, unit_cost=1.10, image="img/parts/ali-wire-white.png"),
             dict(part_number="ALI-WIRE-RED", part_name="Kit in Roll 1007 Electric Wire 22AWG 10m — Red",
-                 qty=3, unit_cost=1.10),
+                 qty=3, unit_cost=1.10, image="img/parts/ali-wire-red.png"),
             dict(part_number="ALI-WIRE-YELLOW", part_name="Kit in Roll 1007 Electric Wire 22AWG 10m — Yellow",
-                 qty=1, unit_cost=1.10),
+                 qty=1, unit_cost=1.10, image="img/parts/ali-wire-yellow.png"),
             dict(part_number="ALI-WIRE-GREEN", part_name="Kit in Roll 1007 Electric Wire 22AWG 10m — Green",
-                 qty=1, unit_cost=1.10),
+                 qty=1, unit_cost=1.10, image="img/parts/ali-wire-green.png"),
         ],
     },
     {
@@ -203,14 +214,24 @@ def get_or_create_supplier(db, name, notes, source_url):
     return cur.lastrowid
 
 
-def get_or_create_part(db, part_number, part_name, unit_cost, category_id, supplier_id):
-    row = db.execute("SELECT id FROM parts WHERE part_number = ?", (part_number,)).fetchone()
+def get_or_create_part(db, part_number, part_name, unit_cost, category_id, supplier_id, image_path):
+    row = db.execute(
+        "SELECT id, product_image_path FROM parts WHERE part_number = ?", (part_number,)
+    ).fetchone()
     if row:
+        # Upgrade path: a part created by an earlier run (before this
+        # script attached photos) that's still missing one gets it filled
+        # in now, same idea as the PO receive-upgrade above — re-running
+        # after adding image data catches parts up instead of skipping.
+        if image_path and not row["product_image_path"]:
+            db.execute("UPDATE parts SET product_image_path = ? WHERE id = ?", (image_path, row["id"]))
+            db.commit()
+            return row["id"], "image-added"
         return row["id"], False
     cur = db.execute(
         "INSERT INTO parts (part_name, part_number, category_id, unit_cost, preferred_supplier_id, "
-        "label_link_type, created_at) VALUES (?,?,?,?,?,?,?)",
-        (part_name, part_number, category_id, unit_cost, supplier_id, "Custom URL", now_str()),
+        "product_image_path, label_link_type, created_at) VALUES (?,?,?,?,?,?,?,?)",
+        (part_name, part_number, category_id, unit_cost, supplier_id, image_path, "Custom URL", now_str()),
     )
     db.commit()
     return cur.lastrowid, True
@@ -228,6 +249,32 @@ def receive_and_land(db, po_id, shipment):
 
 
 def import_shipment(db, shipment, category_id):
+    # Parts are upserted unconditionally, even for a shipment whose PO
+    # already exists — this is what lets a re-run pick up a newly-added
+    # image (or any other part-level field) on parts created by an
+    # earlier pass, without re-touching the PO/receiving side at all.
+    supplier_id = get_or_create_supplier(
+        db, shipment["supplier_name"], shipment["supplier_notes"], shipment["source_url"]
+    )
+    part_ids = []
+    for p in shipment["parts"]:
+        part_id, created = get_or_create_part(
+            db, p["part_number"], p["part_name"], p["unit_cost"], category_id, supplier_id, p.get("image")
+        )
+        link_exists = db.execute(
+            "SELECT 1 FROM part_suppliers WHERE part_id = ? AND supplier_id = ?", (part_id, supplier_id)
+        ).fetchone()
+        if not link_exists:
+            db.execute(
+                "INSERT INTO part_suppliers (part_id, supplier_id, supplier_cost, lead_time_days, source_url, preferred) "
+                "VALUES (?,?,?,?,?,1)",
+                (part_id, supplier_id, p["unit_cost"], shipment.get("lead_time_days"), shipment["source_url"]),
+            )
+        part_ids.append((part_id, p["qty"], p["unit_cost"]))
+        label = {"image-added": "image added ", True: "created     ", False: "exists      "}[created]
+        print(f"    {label} part {p['part_number']}: {p['part_name']}")
+    db.commit()
+
     existing_po = db.execute(
         "SELECT id, status FROM purchase_orders WHERE notes LIKE ?", (shipment["marker"] + "%",)
     ).fetchone()
@@ -241,30 +288,8 @@ def import_shipment(db, shipment, category_id):
             receive_and_land(db, existing_po["id"], shipment)
             print(f"  RECEIVED (was pending): {shipment['marker']}")
         else:
-            print(f"  SKIP (already imported): {shipment['marker']}")
+            print(f"  SKIP (PO already imported): {shipment['marker']}")
         return
-
-    supplier_id = get_or_create_supplier(
-        db, shipment["supplier_name"], shipment["supplier_notes"], shipment["source_url"]
-    )
-
-    part_ids = []
-    for p in shipment["parts"]:
-        part_id, created = get_or_create_part(
-            db, p["part_number"], p["part_name"], p["unit_cost"], category_id, supplier_id
-        )
-        link_exists = db.execute(
-            "SELECT 1 FROM part_suppliers WHERE part_id = ? AND supplier_id = ?", (part_id, supplier_id)
-        ).fetchone()
-        if not link_exists:
-            db.execute(
-                "INSERT INTO part_suppliers (part_id, supplier_id, supplier_cost, lead_time_days, source_url, preferred) "
-                "VALUES (?,?,?,?,?,1)",
-                (part_id, supplier_id, p["unit_cost"], shipment.get("lead_time_days"), shipment["source_url"]),
-            )
-        part_ids.append((part_id, p["qty"], p["unit_cost"]))
-        print(f"    {'created' if created else 'exists '} part {p['part_number']}: {p['part_name']}")
-    db.commit()
 
     expected_delivery = None
     status = "Sent"
