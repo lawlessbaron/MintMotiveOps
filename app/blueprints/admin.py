@@ -1,3 +1,4 @@
+import os
 import re
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from werkzeug.security import generate_password_hash
@@ -245,10 +246,74 @@ def integrations():
         flash("Integration settings saved.", "success")
         return redirect(url_for("admin.integrations"))
     integrations = db.execute("SELECT * FROM integration_settings ORDER BY integration_name").fetchall()
+    company = db.execute("SELECT * FROM company_settings WHERE id=1").fetchone()
     return render_template(
-        "admin/integrations.html", integrations=integrations, stripe_configured=stripe_client.is_configured(),
-        smtp_configured=email_client.is_configured(),
+        "admin/integrations.html", integrations=integrations, company=company,
+        stripe_configured=stripe_client.is_configured(), smtp_configured=email_client.is_configured(),
+        stripe_env_active=bool(os.environ.get("STRIPE_SECRET_KEY")),
+        smtp_env_active=bool(os.environ.get("SMTP_HOST")),
     )
+
+
+@bp.route("/integrations/stripe/save", methods=["POST"])
+def save_stripe_credentials():
+    from .. import crypto_utils
+    db = get_db()
+    f = request.form
+    updates, args = [], []
+    if f.get("stripe_secret_key"):
+        updates.append("stripe_secret_key_encrypted=?")
+        args.append(crypto_utils.encrypt(f["stripe_secret_key"]))
+    if f.get("stripe_webhook_secret"):
+        updates.append("stripe_webhook_secret_encrypted=?")
+        args.append(crypto_utils.encrypt(f["stripe_webhook_secret"]))
+    if updates:
+        db.execute(f"UPDATE company_settings SET {', '.join(updates)} WHERE id=1", args)
+        db.commit()
+        flash("Stripe credentials saved and encrypted.", "success")
+    else:
+        flash("Nothing entered — leave a field blank to keep its current value, or use Clear to remove it.", "error")
+    return redirect(url_for("admin.integrations"))
+
+
+@bp.route("/integrations/stripe/clear", methods=["POST"])
+def clear_stripe_credentials():
+    db = get_db()
+    db.execute(
+        "UPDATE company_settings SET stripe_secret_key_encrypted=NULL, stripe_webhook_secret_encrypted=NULL WHERE id=1"
+    )
+    db.commit()
+    flash("Stripe credentials cleared from the database. Environment variables, if set, are unaffected.", "success")
+    return redirect(url_for("admin.integrations"))
+
+
+@bp.route("/integrations/smtp/save", methods=["POST"])
+def save_smtp_credentials():
+    from .. import crypto_utils
+    db = get_db()
+    f = request.form
+    sql = "UPDATE company_settings SET smtp_host=?, smtp_port=?, smtp_user=?, smtp_from=?"
+    args = [f.get("smtp_host") or None, int(f["smtp_port"]) if f.get("smtp_port") else None,
+            f.get("smtp_user") or None, f.get("smtp_from") or None]
+    if f.get("smtp_password"):
+        sql += ", smtp_password_encrypted=?"
+        args.append(crypto_utils.encrypt(f["smtp_password"]))
+    db.execute(sql + " WHERE id=1", args)
+    db.commit()
+    flash("SMTP settings saved.", "success")
+    return redirect(url_for("admin.integrations"))
+
+
+@bp.route("/integrations/smtp/clear", methods=["POST"])
+def clear_smtp_credentials():
+    db = get_db()
+    db.execute(
+        "UPDATE company_settings SET smtp_host=NULL, smtp_port=NULL, smtp_user=NULL, "
+        "smtp_password_encrypted=NULL, smtp_from=NULL WHERE id=1"
+    )
+    db.commit()
+    flash("SMTP settings cleared from the database. Environment variables, if set, are unaffected.", "success")
+    return redirect(url_for("admin.integrations"))
 
 
 @bp.route("/integrations/<name>/test-sync", methods=["POST"])

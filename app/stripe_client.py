@@ -3,8 +3,9 @@ isn't installable in the build sandbox — this sandbox also can't reach
 api.stripe.com to test it live). Uses only `requests` and the stdlib `hmac`
 module, both already installed, and talks to Stripe's plain REST API
 directly, which needs no SDK. This becomes live the moment a real
-STRIPE_SECRET_KEY is set in the environment on a host that has internet
-access — nothing else needs to change.
+STRIPE_SECRET_KEY is set — either as an environment variable (checked
+first) or via Administration > Integrations (encrypted at rest, see
+app/crypto_utils.py) — nothing else needs to change.
 """
 import os
 import hmac
@@ -15,8 +16,27 @@ import requests
 STRIPE_API_BASE = "https://api.stripe.com/v1"
 
 
+def _company_settings():
+    from .db import get_db
+    return get_db().execute("SELECT * FROM company_settings WHERE id=1").fetchone()
+
+
 def _secret_key():
-    return os.environ.get("STRIPE_SECRET_KEY")
+    env_val = os.environ.get("STRIPE_SECRET_KEY")
+    if env_val:
+        return env_val
+    from . import crypto_utils
+    row = _company_settings()
+    return crypto_utils.decrypt(row["stripe_secret_key_encrypted"]) if row else None
+
+
+def webhook_secret():
+    env_val = os.environ.get("STRIPE_WEBHOOK_SECRET")
+    if env_val:
+        return env_val
+    from . import crypto_utils
+    row = _company_settings()
+    return crypto_utils.decrypt(row["stripe_webhook_secret_encrypted"]) if row else None
 
 
 def is_configured():

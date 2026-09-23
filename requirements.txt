@@ -3,6 +3,12 @@ Jinja2==3.1.6
 Werkzeug==3.1.8
 requests==2.33.1
 
+# Encrypts Stripe/SMTP credentials at rest when they're set via
+# Administration > Integrations instead of environment variables — see
+# app/crypto_utils.py. Not needed if you only ever configure those through
+# env vars.
+cryptography>=42,<44
+
 # PostgreSQL driver — only imported/used if you set a DATABASE_URL env var
 # (see POSTGRES_SETUP.md). If pip ever fails to find a wheel for this on an
 # unusual platform and you're not using Postgres, it's safe to delete this

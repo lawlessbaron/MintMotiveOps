@@ -319,6 +319,13 @@ ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS approval_status TEXT NOT NU
 ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS approved_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS approved_at TEXT;
 ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS approval_notes TEXT;
+ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS stripe_secret_key_encrypted TEXT;
+ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS stripe_webhook_secret_encrypted TEXT;
+ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS smtp_host TEXT;
+ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS smtp_port INTEGER;
+ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS smtp_user TEXT;
+ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS smtp_password_encrypted TEXT;
+ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS smtp_from TEXT;
 """
 
 
@@ -350,6 +357,13 @@ def init_db(app):
     _ensure_column_sqlite(conn, "purchase_orders", "approved_by", "INTEGER REFERENCES users(id) ON DELETE SET NULL")
     _ensure_column_sqlite(conn, "purchase_orders", "approved_at", "TEXT")
     _ensure_column_sqlite(conn, "purchase_orders", "approval_notes", "TEXT")
+    _ensure_column_sqlite(conn, "company_settings", "stripe_secret_key_encrypted", "TEXT")
+    _ensure_column_sqlite(conn, "company_settings", "stripe_webhook_secret_encrypted", "TEXT")
+    _ensure_column_sqlite(conn, "company_settings", "smtp_host", "TEXT")
+    _ensure_column_sqlite(conn, "company_settings", "smtp_port", "INTEGER")
+    _ensure_column_sqlite(conn, "company_settings", "smtp_user", "TEXT")
+    _ensure_column_sqlite(conn, "company_settings", "smtp_password_encrypted", "TEXT")
+    _ensure_column_sqlite(conn, "company_settings", "smtp_from", "TEXT")
     conn.commit()
     conn.close()
     return fresh

@@ -51,10 +51,9 @@ def checkout(token):
 
 @bp.route("/webhook/stripe", methods=["POST"])
 def stripe_webhook():
-    import os
     payload = request.get_data()
     sig_header = request.headers.get("Stripe-Signature")
-    secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
+    secret = stripe_client.webhook_secret()
     if not secret or not stripe_client.verify_webhook_signature(payload, sig_header, secret):
         abort(400)
     import json

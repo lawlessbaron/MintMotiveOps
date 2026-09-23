@@ -22,18 +22,55 @@
   </div>
   {% if i.integration_name == 'Stripe' %}
   <p class="subtitle" style="margin-top:12px;">
-    Stripe is configured via environment variables (<code>STRIPE_SECRET_KEY</code>, <code>STRIPE_WEBHOOK_SECRET</code>)
-    on your hosting platform, not through a field here — API keys aren't stored in the database. Status:
-    <strong>{{ 'key detected' if stripe_configured else 'STRIPE_SECRET_KEY not set' }}</strong>.
+    Status: <strong>{{ 'key detected' if stripe_configured else 'not configured' }}</strong>.
     Once set, invoices get a real "Pay Now" Stripe Checkout link automatically.
+    {% if stripe_env_active %}Currently sourced from the <code>STRIPE_SECRET_KEY</code> environment variable on
+    your host, which always takes priority — the fields below are saved but won't be used until that env var
+    is unset.{% endif %}
   </p>
+  <form method="post" action="{{ url_for('admin.save_stripe_credentials') }}" style="margin-top:12px;">
+    <div class="form-row">
+      <div><label>Stripe Secret Key</label><input type="password" name="stripe_secret_key" placeholder="{{ 'Currently set — leave blank to keep' if company.stripe_secret_key_encrypted else 'sk_live_…' }}" autocomplete="new-password"></div>
+      <div><label>Stripe Webhook Secret</label><input type="password" name="stripe_webhook_secret" placeholder="{{ 'Currently set — leave blank to keep' if company.stripe_webhook_secret_encrypted else 'whsec_…' }}" autocomplete="new-password"></div>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:10px;">
+      <button class="btn btn-accent btn-sm" type="submit">Save</button>
+    </div>
+  </form>
+  {% if company.stripe_secret_key_encrypted or company.stripe_webhook_secret_encrypted %}
+  <form method="post" action="{{ url_for('admin.clear_stripe_credentials') }}" style="margin-top:6px;" onsubmit="return confirm('Clear the stored Stripe credentials from the database?');">
+    <button class="btn btn-sm" type="submit">Clear stored credentials</button>
+  </form>
+  {% endif %}
+  <p class="subtitle" style="margin-top:8px;">Encrypted at rest. Can also be set via <code>STRIPE_SECRET_KEY</code>/<code>STRIPE_WEBHOOK_SECRET</code> environment variables instead, which always take priority over these fields.</p>
   {% elif i.integration_name == 'Email (SMTP)' %}
   <p class="subtitle" style="margin-top:12px;">
-    Email is configured via environment variables (<code>SMTP_HOST</code>, <code>SMTP_PORT</code>,
-    <code>SMTP_USER</code>, <code>SMTP_PASSWORD</code>, <code>SMTP_FROM</code>) on your hosting platform —
-    see <code>.env.example</code>. Status: <strong>{{ 'credentials detected' if smtp_configured else 'not set — reset codes and approval emails are only logged, never sent' }}</strong>.
+    Status: <strong>{{ 'credentials detected' if smtp_configured else 'not configured — reset codes and approval emails are only logged, never sent' }}</strong>.
     Once set, Forgot Password codes and Purchase Order approval notifications are actually emailed.
+    {% if smtp_env_active %}Currently sourced from the <code>SMTP_HOST</code> environment variable on your
+    host, which always takes priority — the fields below are saved but won't be used until that env var is
+    unset.{% endif %}
   </p>
+  <form method="post" action="{{ url_for('admin.save_smtp_credentials') }}" style="margin-top:12px;">
+    <div class="form-row">
+      <div><label>SMTP Host</label><input name="smtp_host" value="{{ company.smtp_host or '' }}" placeholder="smtp.resend.com"></div>
+      <div style="max-width:100px;"><label>Port</label><input type="number" name="smtp_port" value="{{ company.smtp_port or '' }}" placeholder="587"></div>
+      <div><label>Username</label><input name="smtp_user" value="{{ company.smtp_user or '' }}" placeholder="resend"></div>
+    </div>
+    <div class="form-row" style="margin-top:8px;">
+      <div><label>Password / API Key</label><input type="password" name="smtp_password" placeholder="{{ 'Currently set — leave blank to keep' if company.smtp_password_encrypted else '' }}" autocomplete="new-password"></div>
+      <div><label>From Address</label><input type="email" name="smtp_from" value="{{ company.smtp_from or '' }}" placeholder="noreply@yourdomain.com"></div>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:10px;">
+      <button class="btn btn-accent btn-sm" type="submit">Save</button>
+    </div>
+  </form>
+  {% if company.smtp_host %}
+  <form method="post" action="{{ url_for('admin.clear_smtp_credentials') }}" style="margin-top:6px;" onsubmit="return confirm('Clear the stored SMTP settings from the database?');">
+    <button class="btn btn-sm" type="submit">Clear stored settings</button>
+  </form>
+  {% endif %}
+  <p class="subtitle" style="margin-top:8px;">Password is encrypted at rest. Can also be set via <code>SMTP_HOST</code>/<code>SMTP_PORT</code>/<code>SMTP_USER</code>/<code>SMTP_PASSWORD</code>/<code>SMTP_FROM</code> environment variables instead, which always take priority over these fields.</p>
   {% else %}
   <form method="post" action="{{ url_for('admin.integrations') }}" style="margin-top:12px;">
     <input type="hidden" name="integration_name" value="{{ i.integration_name }}">

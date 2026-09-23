@@ -49,7 +49,20 @@ CREATE TABLE company_settings (
     dark_border TEXT DEFAULT '#6A6A6A',
     dark_sidebar_bg TEXT DEFAULT '#000000',
     dark_sidebar_text TEXT DEFAULT '#F6EED9',
-    dark_text_on_accent TEXT DEFAULT '#1E2124'
+    dark_text_on_accent TEXT DEFAULT '#1E2124',
+    -- Stripe/SMTP set from Administration > Integrations instead of an
+    -- environment variable. Env vars always take priority when set (see
+    -- stripe_client.py/email_client.py) — these are the fallback for
+    -- anyone who'd rather not touch their host's environment variables.
+    -- Secrets are encrypted at rest (app/crypto_utils.py); host/port/
+    -- user/from aren't secret so are stored plain.
+    stripe_secret_key_encrypted TEXT,
+    stripe_webhook_secret_encrypted TEXT,
+    smtp_host TEXT,
+    smtp_port INTEGER,
+    smtp_user TEXT,
+    smtp_password_encrypted TEXT,
+    smtp_from TEXT
 );
 
 CREATE TABLE numbering_sequences (
