@@ -298,6 +298,14 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     success INTEGER NOT NULL DEFAULT 0,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+-- Generic marker for one-off data corrections (e.g. scripts/*.py fixing
+-- something an earlier version of itself got wrong) — insert a row once
+-- a fix has run so it never re-applies, without needing a bespoke
+-- "already fixed?" heuristic per fix.
+CREATE TABLE IF NOT EXISTS applied_data_fixes (
+    fix_name TEXT PRIMARY KEY,
+    applied_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 _MIGRATIONS_POSTGRES = """
@@ -316,6 +324,10 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     ip_address TEXT,
     success INTEGER NOT NULL DEFAULT 0,
     created_at TEXT DEFAULT to_char(CURRENT_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')
+);
+CREATE TABLE IF NOT EXISTS applied_data_fixes (
+    fix_name TEXT PRIMARY KEY,
+    applied_at TEXT DEFAULT to_char(CURRENT_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')
 );
 ALTER TABLE users ADD COLUMN IF NOT EXISTS can_view_analytics INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS spending_limit REAL;
