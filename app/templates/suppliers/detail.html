@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_icons.html" as icons %}
 {% block title %}{{ supplier.supplier_name }} — MintMotive Ops{% endblock %}
 {% block content %}
 <div class="page-header"><div><h1>{{ supplier.supplier_name }}</h1><div class="subtitle">{{ supplier.supplier_code }}</div></div><span class="badge {{ 'accent' if supplier.status=='Active' }}">{{ supplier.status }}</span></div>
@@ -46,7 +47,7 @@
     {% for period in blackout_periods %}
     <tr>
       <td>{{ period.start_date }}</td><td>{{ period.end_date }}</td><td class="subtitle">{{ period.reason or '' }}</td>
-      <td><form method="post" action="{{ url_for('suppliers.remove_blackout', supplier_id=supplier.id, period_id=period.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">✕</button></form></td>
+      <td><form method="post" action="{{ url_for('suppliers.remove_blackout', supplier_id=supplier.id, period_id=period.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">{{ icons.icon('close') }}</button></form></td>
     </tr>
     {% else %}<tr><td colspan="4" class="empty-state">None scheduled.</td></tr>{% endfor %}
   </table>

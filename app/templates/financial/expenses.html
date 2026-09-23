@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_icons.html" as icons %}
 {% block title %}Expenses — MintMotive Ops{% endblock %}
 {% block content %}
 <div class="page-header"><h1>Expenses Ledger</h1></div>
@@ -75,7 +76,7 @@
       <td>${{ "%.2f"|format(e.amount_ex_gst) }}</td>
       <td>${{ "%.2f"|format(e.gst_amount) }}</td>
       <td><span class="badge {{ 'accent' if e.source=='Purchase Order' }}">{{ e.source }}</span></td>
-      <td><form method="post" action="{{ url_for('financial.delete_expense', expense_id=e.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">✕</button></form></td>
+      <td><form method="post" action="{{ url_for('financial.delete_expense', expense_id=e.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">{{ icons.icon('close') }}</button></form></td>
     </tr>
     {% else %}<tr><td colspan="8" class="empty-state">No expenses recorded yet.</td></tr>{% endfor %}
   </table>

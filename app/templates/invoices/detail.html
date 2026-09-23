@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_icons.html" as icons %}
 {% block title %}{{ doc.invoice_number }} — MintMotive Ops{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -38,7 +39,7 @@
       <table class="data-table line-items-grid"><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th><th></th></tr>
       {% for l in lines %}
       <tr><td>{{ l.kit_name or l.part_name or l.description }}</td><td>{{ l.quantity }}</td><td>${{ "%.2f"|format(l.unit_price) }}</td><td>${{ "%.2f"|format(l.quantity*l.unit_price) }}</td>
-        <td><form method="post" action="{{ url_for('invoices.remove_line', invoice_id=doc.id, line_id=l.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">✕</button></form></td></tr>
+        <td><form method="post" action="{{ url_for('invoices.remove_line', invoice_id=doc.id, line_id=l.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">{{ icons.icon('close') }}</button></form></td></tr>
       {% else %}<tr><td colspan="5" class="empty-state">No lines yet — add one below. This must work exactly like Quotes.</td></tr>{% endfor %}
       </table>
       <form method="post" action="{{ url_for('invoices.add_line', invoice_id=doc.id) }}" style="margin-top:10px;">

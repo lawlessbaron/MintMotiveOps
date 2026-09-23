@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_icons.html" as icons %}
 {% block title %}{{ order.order_number }} — MintMotive Ops{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -20,7 +21,7 @@
     <td>{{ l.item_type }}</td>
     <td>{{ l.kit_name or l.part_name or l.description }}</td>
     <td>{{ l.quantity }}</td><td>${{ "%.2f"|format(l.unit_price) }}</td><td>${{ "%.2f"|format(line_total(l.quantity, l.unit_price)) }}</td>
-    <td><form method="post" action="{{ url_for('sales_orders.remove_line', order_id=order.id, line_id=l.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">✕</button></form></td>
+    <td><form method="post" action="{{ url_for('sales_orders.remove_line', order_id=order.id, line_id=l.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">{{ icons.icon('close') }}</button></form></td>
   </tr>
   {% else %}<tr><td colspan="6" class="empty-state">No lines yet.</td></tr>{% endfor %}
   <tr><td colspan="4" style="text-align:right; font-weight:700;">Total Value</td><td colspan="2" style="font-weight:700;">${{ "%.2f"|format(total) }}</td></tr>

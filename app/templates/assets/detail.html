@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% import "_icons.html" as icons %}
 {% block title %}{{ asset.asset_name }} — Assets{% endblock %}
 {% block content %}
 <div class="page-header">
   <div><h1>{{ asset.asset_name }}</h1><div class="subtitle"><span class="badge {{ 'accent' if asset.status=='In Service' }}">{{ asset.status }}</span></div></div>
-  <a class="btn" href="{{ url_for('assets.index') }}">← Back to Assets</a>
+  <a class="btn" href="{{ url_for('assets.index') }}">{{ icons.icon('back') }} Back to Assets</a>
 </div>
 <div class="card">
   <form method="post" action="{{ url_for('assets.edit', asset_id=asset.id) }}">

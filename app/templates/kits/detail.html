@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_icons.html" as icons %}
 {% block title %}{{ kit.kit_name }} — MintMotive Ops{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -53,7 +54,7 @@
     </td>
     <td><span class="badge {{ 'accent' if line.component_type == 'Sub-Assembly' }}">{{ line.component_type }}</span></td>
     <td>{{ line.quantity_required }}</td><td>${{ "%.2f"|format(line.unit_cost) }}</td><td>${{ "%.2f"|format(line.quantity_required * line.unit_cost) }}</td>
-    <td><form method="post" action="{{ url_for('kits.remove_bom_line', kit_id=kit.id, line_id=line.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">✕</button></form></td>
+    <td><form method="post" action="{{ url_for('kits.remove_bom_line', kit_id=kit.id, line_id=line.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">{{ icons.icon('close') }}</button></form></td>
   </tr>
   {% else %}<tr><td colspan="6" class="empty-state">No BOM lines yet.</td></tr>{% endfor %}
   </table>
@@ -102,7 +103,7 @@
       {% endfor %}
     </select>
     <div class="form-row" style="margin-top:8px; align-items:center;">
-      <button type="button" class="btn" onclick="mmoFlashToDevice({selectId:'kit-flash-firmware-select', statusId:'kit-flash-status'})">⚡ Flash to Device</button>
+      <button type="button" class="btn" onclick="mmoFlashToDevice({selectId:'kit-flash-firmware-select', statusId:'kit-flash-status'})">{{ icons.icon('flash') }} Flash to Device</button>
       <span id="kit-flash-status" class="subtitle"></span>
     </div>
     <p class="subtitle">Requires the Local Agent running on this PC — see Administration &gt; Local Agent.</p>
@@ -133,7 +134,7 @@
   {% for step in routing_steps %}
   <tr>
     <td>{{ step.step_number }}</td><td>{{ step.step_name }}</td><td class="subtitle">{{ step.instructions or '' }}</td><td>{{ step.estimated_minutes }}</td>
-    <td><form method="post" action="{{ url_for('kits.remove_routing_step', kit_id=kit.id, step_id=step.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">✕</button></form></td>
+    <td><form method="post" action="{{ url_for('kits.remove_routing_step', kit_id=kit.id, step_id=step.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">{{ icons.icon('close') }}</button></form></td>
   </tr>
   {% else %}<tr><td colspan="5" class="empty-state">No routing steps yet.</td></tr>{% endfor %}
   </table>

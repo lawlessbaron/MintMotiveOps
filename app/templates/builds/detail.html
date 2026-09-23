@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_icons.html" as icons %}
 {% block title %}{{ build.build_number }} — MintMotive Ops{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -64,7 +65,7 @@
           {% endfor %}
         </select>
         <div class="form-row" style="margin-top:8px; align-items:center;">
-          <button type="button" class="btn" onclick="mmoFlashToDevice({selectId:'flash-firmware-select', statusId:'flash-status', buildId:{{ build.id }}})">⚡ Flash to Device</button>
+          <button type="button" class="btn" onclick="mmoFlashToDevice({selectId:'flash-firmware-select', statusId:'flash-status', buildId:{{ build.id }}})">{{ icons.icon('flash') }} Flash to Device</button>
           <span id="flash-status" class="subtitle"></span>
         </div>
         {% if not agent_key_set %}
@@ -120,7 +121,7 @@
     <td>{{ o.substitute_part_name or o.substitute_kit_name }}</td>
     <td>{{ o.quantity_required }}</td>
     <td class="subtitle">{{ o.notes or '' }}</td>
-    <td><form method="post" action="{{ url_for('builds.remove_bom_override', build_id=build.id, override_id=o.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">✕</button></form></td>
+    <td><form method="post" action="{{ url_for('builds.remove_bom_override', build_id=build.id, override_id=o.id) }}"><button class="remove-line" type="submit" style="background:none;border:none;">{{ icons.icon('close') }}</button></form></td>
   </tr>
   {% else %}<tr><td colspan="5" class="empty-state">No overrides — this build uses the kit's standard BOM.</td></tr>{% endfor %}
   </table>

@@ -310,8 +310,9 @@ textarea { min-height: 72px; }
 
 .line-items-grid td, .line-items-grid th { padding: 4px; }
 .line-items-grid input, .line-items-grid select { font-size: 13px; padding: 6px 8px; }
-.remove-line { color: #b3261e; cursor: pointer; font-weight: 700; transition: opacity var(--t-fast) var(--ease); }
+.remove-line { display: inline-flex; align-items: center; justify-content: center; padding: 3px; color: #b3261e; cursor: pointer; transition: opacity var(--t-fast) var(--ease); }
 .remove-line:hover { opacity: .7; }
+.ui-icon { width: 14px; height: 14px; flex-shrink: 0; vertical-align: -2.5px; }
 
 .color-swatch-row { display: flex; align-items: center; gap: var(--sp-3); margin: var(--sp-2) 0; }
 .color-swatch-row input[type=color] { width: 44px; height: 34px; padding: 2px; }

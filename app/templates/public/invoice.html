@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_icons.html" as icons %}
 {% block title %}{{ doc.invoice_number }} — {{ company.company_name }}{% endblock %}
 {% block bare_content %}
 <style>
@@ -13,7 +14,7 @@
 
   <div class="pay-box">
     {% if doc.status == 'Paid' %}
-      <h2 style="color:#1b7a3d;">✓ Paid</h2>
+      <h2 style="color:#1b7a3d; display:flex; align-items:center; justify-content:center; gap:8px;">{{ icons.icon('check') }} Paid</h2>
       <p>This invoice has been paid{% if doc.paid_at %} on {{ doc.paid_at }}{% endif %}. Thank you!</p>
     {% else %}
       <p>Amount Due</p>
