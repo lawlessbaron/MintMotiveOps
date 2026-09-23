@@ -66,9 +66,16 @@
     </div>
   </form>
   {% if company.smtp_host %}
-  <form method="post" action="{{ url_for('admin.clear_smtp_credentials') }}" style="margin-top:6px;" onsubmit="return confirm('Clear the stored SMTP settings from the database?');">
+  <form method="post" action="{{ url_for('admin.clear_smtp_credentials') }}" style="margin-top:6px; display:inline-block;" onsubmit="return confirm('Clear the stored SMTP settings from the database?');">
     <button class="btn btn-sm" type="submit">Clear stored settings</button>
   </form>
+  {% endif %}
+  {% if smtp_configured %}
+  <form method="post" action="{{ url_for('admin.send_test_smtp') }}" style="margin-top:10px; display:flex; gap:8px; align-items:flex-end;">
+    <div style="flex:1;"><label>Send a real test email to</label><input type="email" name="test_email" placeholder="you@yourdomain.com.au" required></div>
+    <button class="btn btn-accent btn-sm" type="submit">Send Test Email</button>
+  </form>
+  <p class="subtitle" style="margin-top:4px;">Actually connects and sends — unlike Test Sync above, which only checks the fields are saved. If it fails, the real SMTP error shows here.</p>
   {% endif %}
   <p class="subtitle" style="margin-top:8px;">Password is encrypted at rest. Can also be set via <code>SMTP_HOST</code>/<code>SMTP_PORT</code>/<code>SMTP_USER</code>/<code>SMTP_PASSWORD</code>/<code>SMTP_FROM</code> environment variables instead, which always take priority over these fields.</p>
   {% else %}

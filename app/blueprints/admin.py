@@ -316,6 +316,33 @@ def clear_smtp_credentials():
     return redirect(url_for("admin.integrations"))
 
 
+@bp.route("/integrations/smtp/send-test", methods=["POST"])
+def send_test_smtp():
+    """Unlike Test Sync (which only checks the fields are present), this
+    actually connects and sends — the real thing to try when "nothing
+    arrived" and Test Sync says configured. Shows the raw exception back
+    to the Owner (safe here — this is an authenticated admin action, not
+    the public forgot-password flow, which deliberately never reveals
+    this much)."""
+    to = request.form.get("test_email", "").strip()
+    if not to:
+        flash("Enter an email address to send the test to.", "error")
+        return redirect(url_for("admin.integrations"))
+    try:
+        sent = email_client.send_email(
+            to,
+            "MintMotive Ops — SMTP test email",
+            "If you're reading this, your SMTP settings are working correctly.\n\nMintMotive Ops",
+        )
+        if sent:
+            flash(f"Test email sent to {to} — check its inbox (and spam folder).", "success")
+        else:
+            flash("SMTP isn't configured — nothing to test. Save host/username/password below first.", "error")
+    except Exception as e:
+        flash(f"Send failed: {type(e).__name__}: {e}", "error")
+    return redirect(url_for("admin.integrations"))
+
+
 @bp.route("/integrations/<name>/test-sync", methods=["POST"])
 def test_sync(name):
     import datetime
