@@ -96,19 +96,32 @@ def forgot_password():
                 (user["id"], generate_password_hash(code), expires_at),
             )
             db.commit()
-            sent = email_client.send_email(
-                user["email"],
-                "Your MintMotive Ops password reset code",
-                f"Hi {user['name']},\n\n"
-                f"Your password reset code is: {code}\n\n"
-                f"This code expires in {RESET_CODE_TTL_MINUTES} minutes and can only be used once. "
-                f"If you didn't request this, you can safely ignore this email — your password hasn't "
-                f"been changed.\n\nMintMotive Ops",
-            )
+            # Best-effort — an SMTP problem (bad credentials, blocked port,
+            # timeout) must never crash the request. The code is already
+            # generated and stored either way; only the email delivery can
+            # fail here, and it fails silently to the user (same generic
+            # message below) with the real reason logged server-side.
+            try:
+                sent = email_client.send_email(
+                    user["email"],
+                    "Your MintMotive Ops password reset code",
+                    f"Hi {user['name']},\n\n"
+                    f"Your password reset code is: {code}\n\n"
+                    f"This code expires in {RESET_CODE_TTL_MINUTES} minutes and can only be used once. "
+                    f"If you didn't request this, you can safely ignore this email — your password hasn't "
+                    f"been changed.\n\nMintMotive Ops",
+                )
+            except Exception:
+                sent = False
+                current_app.logger.warning(
+                    f"Failed to email password reset code to {user['email']} — check SMTP settings "
+                    f"(Administration > Integrations).",
+                    exc_info=True,
+                )
             if not sent:
                 current_app.logger.warning(
-                    f"SMTP not configured — a password reset code was generated for {user['email']} but "
-                    f"NOT emailed. Set SMTP_HOST/SMTP_USER/SMTP_PASSWORD to enable real delivery."
+                    f"SMTP not configured or failed — a password reset code was generated for "
+                    f"{user['email']} but NOT emailed. Check Administration > Integrations > Email (SMTP)."
                 )
         # Identical response whether or not the account exists — otherwise
         # this endpoint would let anyone enumerate registered email addresses.
