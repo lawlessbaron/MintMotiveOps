@@ -1,7 +1,61 @@
+from datetime import datetime, timedelta
 from flask import Blueprint, render_template
 from ..db import get_db
 
 bp = Blueprint("dashboard", __name__)
+
+
+def _day_bounds(d):
+    """(start, end) TEXT bounds for one calendar day, for lexical range
+    comparison against 'YYYY-MM-DD HH:MM:SS' columns — works identically on
+    SQLite and Postgres, same convention as now_str() elsewhere in db.py."""
+    start = d.strftime("%Y-%m-%d 00:00:00")
+    end = d.strftime("%Y-%m-%d 23:59:59")
+    return start, end
+
+
+def _count_and_value_for_day(db, d):
+    start, end = _day_bounds(d)
+    orders = db.execute(
+        "SELECT COUNT(*) c FROM sales_orders WHERE order_date >= ? AND order_date <= ?",
+        (start, end),
+    ).fetchone()["c"]
+    revenue = db.execute(
+        "SELECT COALESCE(SUM(l.quantity*l.unit_price),0) v FROM invoices i "
+        "JOIN invoice_lines l ON l.invoice_id = i.id WHERE i.invoice_date >= ? AND i.invoice_date <= ?",
+        (start, end),
+    ).fetchone()["v"]
+    return orders, revenue
+
+
+def _monthly_revenue(db, months=6):
+    """Revenue per calendar month for the trailing N months, oldest first.
+    Bucketed in Python rather than SQL date-trunc, which differs enough
+    between SQLite and Postgres to not be worth hand-rolling twice."""
+    today = datetime.utcnow().date()
+    first_of_this_month = today.replace(day=1)
+    # Walk back `months - 1` month boundaries to find the earliest bucket start.
+    boundaries = [first_of_this_month]
+    cursor = first_of_this_month
+    for _ in range(months - 1):
+        cursor = (cursor - timedelta(days=1)).replace(day=1)
+        boundaries.append(cursor)
+    boundaries.reverse()  # oldest first
+    range_start = boundaries[0].strftime("%Y-%m-%d 00:00:00")
+
+    rows = db.execute(
+        "SELECT i.invoice_date, l.quantity, l.unit_price FROM invoices i "
+        "JOIN invoice_lines l ON l.invoice_id = i.id WHERE i.invoice_date >= ?",
+        (range_start,),
+    ).fetchall()
+
+    buckets = {b.strftime("%Y-%m"): 0.0 for b in boundaries}
+    for r in rows:
+        key = (r["invoice_date"] or "")[:7]
+        if key in buckets:
+            buckets[key] += (r["quantity"] or 0) * (r["unit_price"] or 0)
+
+    return [{"label": b.strftime("%b"), "value": round(buckets[b.strftime("%Y-%m")], 2)} for b in boundaries]
 
 
 @bp.route("/")
@@ -29,6 +83,21 @@ def index():
             "JOIN invoice_lines l ON l.invoice_id = i.id WHERE i.status IN ('Sent','Overdue')"
         ).fetchone()["v"],
     }
+
+    today = datetime.utcnow().date()
+    last_week = today - timedelta(days=7)
+    orders_today, revenue_today = _count_and_value_for_day(db, today)
+    orders_last_week, revenue_last_week = _count_and_value_for_day(db, last_week)
+    trends = {
+        "orders_today": orders_today,
+        "orders_delta": orders_today - orders_last_week,
+        "revenue_today": revenue_today,
+        "revenue_delta": round(revenue_today - revenue_last_week, 2),
+    }
+
+    revenue_chart = _monthly_revenue(db)
+    revenue_chart_max = max([b["value"] for b in revenue_chart] + [1])
+
     recent_orders = db.execute(
         "SELECT so.*, c.client_name FROM sales_orders so JOIN clients c ON c.id = so.client_id "
         "ORDER BY so.created_at DESC LIMIT 8"
@@ -43,6 +112,7 @@ def index():
         "ORDER BY (quantity_on_hand - quantity_reserved) ASC LIMIT 8"
     ).fetchall()
     return render_template(
-        "dashboard/index.html", stats=stats, recent_orders=recent_orders,
+        "dashboard/index.html", stats=stats, trends=trends, revenue_chart=revenue_chart,
+        revenue_chart_max=revenue_chart_max, recent_orders=recent_orders,
         active_builds=active_builds, low_stock=low_stock,
     )

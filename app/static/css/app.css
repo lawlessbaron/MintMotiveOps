@@ -30,6 +30,29 @@
   --ease: cubic-bezier(.2, .7, .3, 1);
   --t-fast: .12s;
   --t-med: .18s;
+
+  /* Chart mark color — NOT the same value as --accent (#9EC4B5). The brand's
+     Muted Teal is deliberately pale/low-chroma for UI chrome, but validated
+     at OKLCH L 0.79 / C 0.046 it fails as a chart mark: 1.65:1 contrast
+     against the light page background, under the 3:1 mark floor, and below
+     the chroma floor where a hue stops reading as color at all. This is a
+     deeper, more saturated step of the same teal family, validated with
+     scripts/validate_palette.js against both --page-bg surfaces
+     (F6EED9 light / 1E2124 dark): passes lightness band, chroma floor, and
+     contrast on both. Same hue, doing the job the pale UI tone can't.
+     See the dataviz skill's color-formula.md — colors are computed, not
+     eyeballed. */
+  --chart-teal: #0E8F6B;
+
+  /* Status palette — fixed, never themed (per the dataviz skill: status is
+     always icon/dot + label, never text colored directly on the page/card
+     surface, since several of these fail 4.5:1 text contrast against this
+     brand's specific surfaces — the icon+label pattern below is the
+     documented mitigation, not a shortcut). */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
 }
 
 html, body {
@@ -177,6 +200,23 @@ table.data-table a.row-link:hover { color: var(--accent); }
 }
 .badge.accent { background: var(--accent); color: var(--text-on-accent); }
 
+/* Status badge — dot + label, per the dataviz skill's status rules: never
+   color-alone, and the label stays in ink (not colored text) since several
+   status hexes fail text contrast on this brand's surfaces. The dot only
+   needs the lower non-text contrast bar (3:1), which it clears. */
+.status-badge {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px;
+  border-radius: var(--r-pill); font-size: 11px; font-family: 'Poppins', sans-serif;
+  font-weight: 600; letter-spacing: .01em; color: var(--text-primary);
+  background: var(--page-bg); border: 1px solid var(--border);
+}
+.status-badge .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.status-badge.good .dot { background: var(--status-good); }
+.status-badge.warning .dot { background: var(--status-warning); }
+.status-badge.serious .dot { background: var(--status-serious); }
+.status-badge.critical .dot { background: var(--status-critical); }
+.status-badge.neutral .dot { background: var(--text-secondary); }
+
 label { display: block; font-family: 'Poppins', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: .01em; color: var(--text-secondary); margin: var(--sp-3) 0 var(--sp-1); }
 input, select, textarea {
   width: 100%; padding: 9px 12px; border-radius: var(--r-sm); border: 1px solid var(--border);
@@ -210,6 +250,37 @@ textarea { min-height: 72px; }
 .stat-tile.pending-alert .value { color: #b3261e; }
 .stat-tile .label { font-family: 'Poppins', sans-serif; font-size: 11.5px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .06em; }
 .stat-tile .value { font-size: 26px; font-weight: 700; margin-top: 6px; letter-spacing: -.015em; }
+
+/* Trend tiles (Dashboard's "Today" row) — eyebrow + name + hero figure +
+   signed delta vs a named period. Delta color is direction x whether up is
+   good (never a bare color — the arrow + "vs" text is the label). */
+.trend-tile { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--sp-5); }
+.trend-tile .eyebrow { font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .08em; }
+.trend-tile .tile-label { font-size: 16px; font-weight: 700; margin-top: 2px; }
+.trend-tile .hero-figure { font-size: 34px; font-weight: 700; letter-spacing: -.02em; margin-top: var(--sp-3); font-variant-numeric: proportional-nums; }
+.trend-tile .delta { display: flex; align-items: center; gap: 5px; margin-top: var(--sp-2); font-family: 'Poppins', sans-serif; font-size: 12.5px; font-weight: 600; }
+.trend-tile .delta.up { color: var(--status-good); }
+.trend-tile .delta.down { color: var(--status-critical); }
+.trend-tile .delta .period { color: var(--text-secondary); font-weight: 500; }
+
+/* Revenue chart — single-series bar chart, plain inline SVG (no charting
+   dependency). Mark specs per the dataviz skill: <=24px bars, 4px rounded
+   cap at the data end, square at the baseline, hairline recessive gridline,
+   per-bar hover tooltip with a bigger-than-the-mark hit target. */
+.chart-card { position: relative; }
+.chart-svg .bar-rect { fill: var(--chart-teal); transition: opacity var(--t-fast) var(--ease); }
+.chart-svg .bar-hit { fill: transparent; cursor: pointer; }
+.chart-svg .bar-hit:hover + .bar-rect, .chart-svg .bar-hit:focus + .bar-rect { opacity: .8; }
+.chart-svg .baseline { stroke: var(--border); stroke-width: 1; }
+.chart-svg .month-label { font-family: 'Poppins', sans-serif; font-size: 11px; fill: var(--text-secondary); }
+.chart-svg .value-label { font-family: 'Helvetica', Arial, sans-serif; font-size: 11.5px; font-weight: 700; fill: var(--text-primary); }
+.chart-tooltip {
+  position: absolute; pointer-events: none; opacity: 0; transition: opacity var(--t-fast) var(--ease);
+  background: var(--text-primary); color: var(--card-bg); font-family: 'Poppins', sans-serif;
+  font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: var(--r-sm); white-space: nowrap;
+  transform: translate(-50%, -100%); z-index: 5;
+}
+.chart-tooltip.visible { opacity: 1; }
 
 .empty-state {
   text-align: center; padding: var(--sp-7) var(--sp-5); color: var(--text-secondary);

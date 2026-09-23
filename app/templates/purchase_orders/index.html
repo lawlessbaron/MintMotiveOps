@@ -22,9 +22,9 @@
     <td><a class="row-link" href="{{ url_for('purchase_orders.detail', po_id=po.id) }}">{{ po.po_number }}</a></td>
     <td>{{ po.supplier_name }}</td><td>{{ po.order_date }}</td><td><span class="badge">{{ po.status }}</span></td><td>{{ po.duty_payment_status }}</td>
     <td>
-      {% if po.approval_status == 'Pending' %}<span class="badge" style="background:#b3261e; color:#fff;">Pending</span>
-      {% elif po.approval_status == 'Approved' %}<span class="badge accent">Approved</span>
-      {% elif po.approval_status == 'Rejected' %}<span class="badge" style="background:#6a6a6a; color:#fff;">Rejected</span>
+      {% if po.approval_status == 'Pending' %}<span class="status-badge warning"><span class="dot"></span>Pending</span>
+      {% elif po.approval_status == 'Approved' %}<span class="status-badge good"><span class="dot"></span>Approved</span>
+      {% elif po.approval_status == 'Rejected' %}<span class="status-badge critical"><span class="dot"></span>Rejected</span>
       {% else %}<span class="subtitle">—</span>{% endif %}
     </td>
   </tr>

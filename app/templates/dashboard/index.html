@@ -3,6 +3,58 @@
 {% block content %}
 <div class="page-header"><div><h1>Dashboard</h1><div class="subtitle">Real numbers from your actual records.</div></div></div>
 
+<div class="form-row" style="margin-bottom: var(--sp-5);">
+  <div class="trend-tile" style="flex:1; min-width:220px;">
+    <div class="eyebrow">Today</div>
+    <div class="tile-label">Orders</div>
+    <div class="hero-figure">{{ trends.orders_today }}</div>
+    {% if trends.orders_delta != 0 %}
+    <div class="delta {{ 'up' if trends.orders_delta > 0 else 'down' }}">
+      {{ '▲' if trends.orders_delta > 0 else '▼' }} {{ trends.orders_delta|abs }}
+      <span class="period">vs same day last week</span>
+    </div>
+    {% else %}
+    <div class="delta"><span class="period">Same as this day last week</span></div>
+    {% endif %}
+  </div>
+  <div class="trend-tile" style="flex:1; min-width:220px;">
+    <div class="eyebrow">Today</div>
+    <div class="tile-label">Revenue</div>
+    <div class="hero-figure">${{ "%.2f"|format(trends.revenue_today) }}</div>
+    {% if trends.revenue_delta != 0 %}
+    <div class="delta {{ 'up' if trends.revenue_delta > 0 else 'down' }}">
+      {{ '▲' if trends.revenue_delta > 0 else '▼' }} ${{ "%.2f"|format(trends.revenue_delta|abs) }}
+      <span class="period">vs same day last week</span>
+    </div>
+    {% else %}
+    <div class="delta"><span class="period">Same as this day last week</span></div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card chart-card">
+  <h2>Revenue — Last 6 Months</h2>
+  {% set plot_h = 140 %}
+  {% set baseline_y = 170 %}
+  {% set band_w = 110 %}
+  {% set bar_w = 22 %}
+  <svg class="chart-svg" viewBox="0 0 660 210" role="img" aria-label="Revenue by month, last 6 months" style="width:100%; height:auto; display:block;">
+    <line class="baseline" x1="0" y1="{{ baseline_y }}" x2="660" y2="{{ baseline_y }}"></line>
+    {% for b in revenue_chart %}
+      {% set band_x = loop.index0 * band_w %}
+      {% set bar_h = (b.value / revenue_chart_max * plot_h) if revenue_chart_max else 0 %}
+      {% set bar_x = band_x + (band_w - bar_w) / 2 %}
+      {% set bar_y = baseline_y - bar_h %}
+      <text class="value-label" x="{{ band_x + band_w/2 }}" y="{{ bar_y - 8 }}" text-anchor="middle">${{ "%.0f"|format(b.value) if b.value >= 1 or b.value == 0 else "%.2f"|format(b.value) }}</text>
+      <rect class="bar-rect" x="{{ bar_x }}" y="{{ bar_y }}" width="{{ bar_w }}" height="{{ bar_h }}" rx="4" ry="4"></rect>
+      <rect class="bar-hit" data-label="{{ b.label }}" data-value="${{ '%.2f'|format(b.value) }}"
+            x="{{ band_x }}" y="0" width="{{ band_w }}" height="{{ baseline_y }}" tabindex="0"></rect>
+      <text class="month-label" x="{{ band_x + band_w/2 }}" y="{{ baseline_y + 20 }}" text-anchor="middle">{{ b.label }}</text>
+    {% endfor %}
+  </svg>
+  <div class="chart-tooltip" id="revenueChartTooltip"></div>
+</div>
+
 <div class="stat-grid">
   <div class="stat-tile"><div class="label">Open Sales Orders</div><div class="value">{{ stats.open_sales_orders }}</div></div>
   <div class="stat-tile"><div class="label">Active Builds</div><div class="value">{{ stats.active_builds }}</div></div>
@@ -48,4 +100,29 @@
     {% else %}<div class="empty-state">Nothing below its reorder threshold.</div>{% endif %}
   </div>
 </div>
+
+<script>
+(function () {
+  var card = document.querySelector('.chart-card');
+  var tooltip = document.getElementById('revenueChartTooltip');
+  if (!card || !tooltip) return;
+  var hits = card.querySelectorAll('.bar-hit');
+  function show(e) {
+    var rect = card.getBoundingClientRect();
+    var target = e.currentTarget;
+    var targetRect = target.getBoundingClientRect();
+    tooltip.textContent = target.dataset.label + ': ' + target.dataset.value;
+    tooltip.style.left = (targetRect.left - rect.left + targetRect.width / 2) + 'px';
+    tooltip.style.top = (targetRect.top - rect.top) + 'px';
+    tooltip.classList.add('visible');
+  }
+  function hide() { tooltip.classList.remove('visible'); }
+  hits.forEach(function (h) {
+    h.addEventListener('mouseenter', show);
+    h.addEventListener('mouseleave', hide);
+    h.addEventListener('focus', show);
+    h.addEventListener('blur', hide);
+  });
+})();
+</script>
 {% endblock %}
