@@ -778,6 +778,10 @@ CREATE TABLE users (
     -- this user can send to a supplier without Owner approval first —
     -- see purchase_orders.approval_status below.
     spending_limit REAL,
+    -- Comma-separated widget ids this user has hidden from Analytics —
+    -- NULL/empty means every widget shows (the default). Per-user, not
+    -- company-wide, since which numbers matter varies by role.
+    hidden_analytics_widgets TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 

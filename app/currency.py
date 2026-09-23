@@ -16,11 +16,30 @@ is being written, which is inherently rare (once per real purchase).
 """
 import requests
 
-# Only used if the live lookup fails — the multi-year USD/AUD range is
-# roughly 1.30-1.65, so this won't wildly misstate anything even stale,
-# and callers should treat a rate they get from here as provisional either
-# way (see convert()'s return value).
-_FALLBACK_RATES = {"USD": 1.50}
+# Only used if a live lookup fails — a multi-year range for each of these
+# against AUD, so this won't wildly misstate anything even stale, and
+# callers should treat a rate they get from here as provisional either way
+# (see convert()'s is_live / *_is_live return values).
+_FALLBACK_RATES = {"USD": 0.667, "EUR": 0.614, "GBP": 0.525, "NZD": 1.20, "CNY": 4.81, "JPY": 114.0}
+
+# The set shown on the Analytics currency widgets — Australia's actual
+# major trading-partner currencies (largest goods-trade partners plus the
+# US, since that's this app's own import sourcing currency), not an
+# arbitrary top-N by global trading volume. Order here is the fixed
+# categorical order the chart's palette below is assigned in.
+COMMON_CURRENCIES = ["USD", "EUR", "GBP", "NZD", "CNY", "JPY"]
+
+# Validated (scripts/validate_palette.js, both brand surfaces — see the
+# commit that added this) against light Eggshell (#F6EED9) and dark Carbon
+# Black (#1E2124): lightness band, chroma floor, and CVD pairwise
+# separation all pass; USD/EUR reuses --chart-teal so the two "this app
+# already talks about" currencies (AUD's home rate and the Alibaba import's
+# own USD) share a color language with the existing revenue chart. Fixed
+# assignment, never cycled — a currency always gets the same color.
+CHART_COLORS = {
+    "USD": "#0E8F6B", "EUR": "#2B6CB0", "GBP": "#9C7A0A",
+    "NZD": "#B93A3A", "CNY": "#6B46A3", "JPY": "#C2427A",
+}
 
 
 def get_rate(from_currency, to_currency="AUD"):
@@ -29,16 +48,53 @@ def get_rate(from_currency, to_currency="AUD"):
     surface that rather than silently trusting a guessed rate."""
     if from_currency == to_currency:
         return 1.0, True
+    rates, is_live = get_rates(from_currency, [to_currency])
+    return rates.get(to_currency, _FALLBACK_RATES.get(to_currency, 1.0)), is_live
+
+
+def get_rates(from_currency, to_currencies):
+    """Live rates from one currency to several at once (one request) —
+    returns ({currency: rate}, is_live)."""
+    targets = [c for c in to_currencies if c != from_currency]
+    if not targets:
+        return {c: 1.0 for c in to_currencies}, True
     try:
         resp = requests.get(
             "https://api.frankfurter.app/latest",
-            params={"from": from_currency, "to": to_currency},
+            params={"from": from_currency, "to": ",".join(targets)},
             timeout=8,
         )
         resp.raise_for_status()
-        return float(resp.json()["rates"][to_currency]), True
+        rates = {k: float(v) for k, v in resp.json()["rates"].items()}
+        if from_currency in to_currencies:
+            rates[from_currency] = 1.0
+        return rates, True
     except Exception:
-        return _FALLBACK_RATES.get(from_currency, 1.0), False
+        return {c: (1.0 if c == from_currency else _FALLBACK_RATES.get(c, 1.0)) for c in to_currencies}, False
+
+
+def get_historical_rates(base_currency, to_currencies, start_date, end_date):
+    """Daily rates from base_currency to each of to_currencies, one row per
+    date in [start_date, end_date] (both "YYYY-MM-DD" strings). Returns
+    (rows, is_live) — rows is a date-ascending list of
+    {"date": "YYYY-MM-DD", "rates": {currency: rate}}, empty on failure
+    (a chart with no data is an obviously-broken chart; nothing pretends
+    a fallback series is real history)."""
+    try:
+        resp = requests.get(
+            f"https://api.frankfurter.app/{start_date}..{end_date}",
+            params={"from": base_currency, "to": ",".join(to_currencies)},
+            timeout=12,
+        )
+        resp.raise_for_status()
+        by_date = resp.json().get("rates", {})
+        rows = [
+            {"date": d, "rates": {k: float(v) for k, v in by_date[d].items()}}
+            for d in sorted(by_date.keys())
+        ]
+        return rows, True
+    except Exception:
+        return [], False
 
 
 def convert(amount, from_currency, to_currency="AUD"):
