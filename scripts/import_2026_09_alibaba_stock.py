@@ -88,15 +88,15 @@ SHIPMENTS = [
         "shipping_usd": 54.18,
         "parts": [
             dict(part_number="ALI-T501AT", part_name="Toowei T501AT Waterproof Toggle Switch (ON-OFF)",
-                 qty=5, unit_cost=2.19, image="img/parts/ali-toowei-toggle.png"),
+                 qty=5, unit_cost=2.19, image="img/parts/ali-toowei-toggle.png", supplier_part_number="T501AT"),
             dict(part_number="ALI-T501BT", part_name="Toowei T501BT Waterproof Toggle Switch (ON-ON)",
-                 qty=5, unit_cost=2.38, image="img/parts/ali-toowei-toggle.png"),
+                 qty=5, unit_cost=2.38, image="img/parts/ali-toowei-toggle.png", supplier_part_number="T501BT"),
             dict(part_number="ALI-T501CT", part_name="Toowei T501CT Waterproof Toggle Switch (ON-OFF-ON)",
-                 qty=5, unit_cost=2.53, image="img/parts/ali-toowei-toggle.png"),
+                 qty=5, unit_cost=2.53, image="img/parts/ali-toowei-toggle.png", supplier_part_number="T501CT"),
             dict(part_number="ALI-T501FT", part_name="Toowei T501FT Waterproof Toggle Switch ((ON)-OFF)",
-                 qty=5, unit_cost=2.98, image="img/parts/ali-toowei-toggle.png"),
+                 qty=5, unit_cost=2.98, image="img/parts/ali-toowei-toggle.png", supplier_part_number="T501FT"),
             dict(part_number="ALI-T501MT", part_name="Toowei T501MT Waterproof Toggle Switch ((ON)-OFF-(ON))",
-                 qty=5, unit_cost=3.27, image="img/parts/ali-toowei-toggle.png"),
+                 qty=5, unit_cost=3.27, image="img/parts/ali-toowei-toggle.png", supplier_part_number="T501MT"),
         ],
     },
     {
@@ -199,7 +199,7 @@ SHIPMENTS = [
         "parts": [
             dict(part_number="ALI-EC12-ENCODER",
                  part_name="EC12 Metal Handle Rotary Incremental Encoder (ED1223-24P-24LC-M9B7-Y22.5A7-FR, plug-in welding)",
-                 qty=30, unit_cost=0.32),
+                 qty=30, unit_cost=0.32, supplier_part_number="ED1223-24P-24LC-M9B7-Y22.5A7-FR"),
         ],
     },
 ]
@@ -209,9 +209,16 @@ def get_or_create_supplier(db, name, notes, source_url):
     row = db.execute("SELECT id FROM suppliers WHERE supplier_name = ?", (name,)).fetchone()
     if row:
         return row["id"]
+    # The shared placeholder supplier covers several unrelated listings, so
+    # no single URL belongs in its website field — that would read as if
+    # it were the one storefront, when it's a stand-in for several. Real
+    # per-listing links live on each part's Suppliers tab (source_url)
+    # instead; only a supplier tied to exactly one confirmed listing gets
+    # its website set here.
+    website = None if name == UNCONFIRMED_SUPPLIER else source_url
     cur = db.execute(
         "INSERT INTO suppliers (supplier_name, website, currency, notes, created_at) VALUES (?,?,?,?,?)",
-        (name, source_url, "USD", notes, now_str()),
+        (name, website, "USD", notes, now_str()),
     )
     db.commit()
     return cur.lastrowid
@@ -272,15 +279,30 @@ def import_shipment(db, shipment, category_id):
         part_id, created = get_or_create_part(
             db, p["part_number"], p["part_name"], p["unit_cost"], category_id, supplier_id, p.get("image")
         )
-        link_exists = db.execute(
-            "SELECT 1 FROM part_suppliers WHERE part_id = ? AND supplier_id = ?", (part_id, supplier_id)
+        supplier_part_number = p.get("supplier_part_number")
+        link = db.execute(
+            "SELECT supplier_part_number, source_url FROM part_suppliers WHERE part_id = ? AND supplier_id = ?",
+            (part_id, supplier_id),
         ).fetchone()
-        if not link_exists:
+        if not link:
             db.execute(
-                "INSERT INTO part_suppliers (part_id, supplier_id, supplier_cost, lead_time_days, source_url, preferred) "
-                "VALUES (?,?,?,?,?,1)",
-                (part_id, supplier_id, p["unit_cost"], shipment.get("lead_time_days"), shipment["source_url"]),
+                "INSERT INTO part_suppliers (part_id, supplier_id, supplier_part_number, supplier_cost, "
+                "lead_time_days, source_url, preferred) VALUES (?,?,?,?,?,?,1)",
+                (part_id, supplier_id, supplier_part_number, p["unit_cost"],
+                 shipment.get("lead_time_days"), shipment["source_url"]),
             )
+        elif (supplier_part_number and not link["supplier_part_number"]) or not link["source_url"]:
+            # Backfill path: a link created by an earlier pass (before this
+            # script knew the real manufacturer code, or the source_url
+            # field existed at all) gets caught up here instead of staying
+            # stale forever.
+            db.execute(
+                "UPDATE part_suppliers SET supplier_part_number = COALESCE(?, supplier_part_number), "
+                "source_url = COALESCE(source_url, ?) WHERE part_id = ? AND supplier_id = ?",
+                (supplier_part_number, shipment["source_url"], part_id, supplier_id),
+            )
+            changed = True
+            print(f"    backfilled supplier link for part {p['part_number']}")
         part_ids.append((part_id, p["qty"], p["unit_cost"]))
         if created:
             changed = True

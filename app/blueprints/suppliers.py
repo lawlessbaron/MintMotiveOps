@@ -48,7 +48,7 @@ def detail(supplier_id):
         flash("Supplier not found.", "error")
         return redirect(url_for("suppliers.index"))
     parts = db.execute(
-        "SELECT p.id, p.part_name, ps.supplier_part_number, ps.supplier_cost FROM part_suppliers ps "
+        "SELECT p.id, p.part_name, ps.supplier_part_number, ps.supplier_cost, ps.source_url FROM part_suppliers ps "
         "JOIN parts p ON p.id=ps.part_id WHERE ps.supplier_id=?", (supplier_id,)
     ).fetchall()
     pos = db.execute("SELECT * FROM purchase_orders WHERE supplier_id=? ORDER BY order_date DESC", (supplier_id,)).fetchall()
