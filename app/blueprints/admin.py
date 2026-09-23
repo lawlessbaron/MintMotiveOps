@@ -1,3 +1,4 @@
+import re
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from werkzeug.security import generate_password_hash
 from ..db import get_db
@@ -353,12 +354,30 @@ BRAND_DEFAULTS = {
 }
 
 
+_HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{3}$|^#[0-9a-fA-F]{6}$")
+
+
 @bp.route("/appearance", methods=["GET", "POST"])
 def appearance():
     db = get_db()
     if request.method == "POST":
         f = request.form
+        # These values are written straight into an inline <style> block on
+        # every page (base.html's theme-token :root block) with no further
+        # escaping — a non-color value here isn't just a display bug, it's a
+        # stored CSS-injection point. Reject the whole submission rather
+        # than silently substituting defaults for bad fields, so a bad
+        # paste is obvious instead of quietly losing part of the change.
         values = [f.get(field, BRAND_DEFAULTS[field]) for field in APPEARANCE_FIELDS]
+        bad_fields = [
+            field for field, value in zip(APPEARANCE_FIELDS, values) if not _HEX_COLOR_RE.match(value or "")
+        ]
+        if bad_fields:
+            flash(
+                f"Not saved — these aren't valid hex colors (e.g. #9EC4B5): {', '.join(bad_fields)}.",
+                "error",
+            )
+            return redirect(url_for("admin.appearance"))
         set_clause = ", ".join(f"{field}=?" for field in APPEARANCE_FIELDS)
         db.execute(f"UPDATE company_settings SET {set_clause} WHERE id=1", values)
         db.commit()

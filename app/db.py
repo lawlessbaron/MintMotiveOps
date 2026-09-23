@@ -29,7 +29,29 @@ import os
 import json
 import re
 from datetime import datetime, date
+from urllib.parse import urlparse, parse_qs
 from flask import current_app, g
+
+_LOCAL_PG_HOSTS = {"db", "localhost", "127.0.0.1", "::1", None}
+
+
+def _pg_connect_kwargs(database_url):
+    """Adds sslmode=require automatically for any Postgres host that isn't a
+    same-machine/same-Docker-network connection (docker-compose's `db`
+    service, or localhost) — every managed Postgres this app documents
+    (Render, Fly, POSTGRES_SETUP.md) supports it, and a plaintext
+    connection to a real network host would otherwise send every query,
+    row, and the connection password itself in the clear. Never overrides
+    an sslmode the URL already specifies. Also bounds how long a single
+    statement or an idle-in-transaction connection can hold locks, so a
+    runaway query or a request that opened a transaction and never
+    finished can't starve every other connection indefinitely."""
+    kwargs = {"options": "-c statement_timeout=30000 -c idle_in_transaction_session_timeout=30000"}
+    parsed = urlparse(database_url)
+    query = parse_qs(parsed.query)
+    if "sslmode" not in query and parsed.hostname not in _LOCAL_PG_HOSTS:
+        kwargs["sslmode"] = "require"
+    return kwargs
 
 
 def now_str():
@@ -229,6 +251,7 @@ def get_db():
             raw = psycopg2.connect(
                 current_app.config["DATABASE_URL"],
                 cursor_factory=psycopg2.extras.RealDictCursor,
+                **_pg_connect_kwargs(current_app.config["DATABASE_URL"]),
             )
             g.db = PGConnection(raw)
         else:
@@ -299,7 +322,7 @@ def init_db(app):
 def _init_db_postgres(app):
     import psycopg2
     schema_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "schema_postgres.sql")
-    conn = psycopg2.connect(app.config["DATABASE_URL"])
+    conn = psycopg2.connect(app.config["DATABASE_URL"], **_pg_connect_kwargs(app.config["DATABASE_URL"]))
     cur = conn.cursor()
     cur.execute(
         "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'company_settings')"

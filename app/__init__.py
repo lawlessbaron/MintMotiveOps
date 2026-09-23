@@ -99,6 +99,23 @@ def create_app():
         if "user_id" not in session:
             return redirect(url_for("auth.login", next=request.path))
 
+    # ---- role gate: "Owner" vs "Workshop" was previously a cosmetic label
+    # only — session["user_role"] was set at login and shown in the topbar,
+    # but no route ever checked it, so any authenticated Workshop account
+    # had the same access as an Owner to user management, security
+    # settings, integrations, and every financial figure in the business.
+    # Administration and Financial are now Owner-only; everything
+    # operational (orders, builds, inventory, warehouse, analytics) stays
+    # open to both roles. ----
+    OWNER_ONLY_BLUEPRINTS = {"admin", "financial"}
+
+    @app.before_request
+    def require_owner_role():
+        if request.blueprint in OWNER_ONLY_BLUEPRINTS and session.get("user_role") != "Owner":
+            if "user_id" not in session:
+                return  # require_login already handles the redirect-to-login case
+            abort(403, description="Administration and Financial pages are restricted to Owner accounts.")
+
     # ---- CSRF protection: every state-changing browser request must carry
     # the same token stashed in its (signed, httponly) session cookie. The
     # token is injected into every <form> client-side (see base.html) rather
