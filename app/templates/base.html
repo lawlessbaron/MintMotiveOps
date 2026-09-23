@@ -1,3 +1,4 @@
+{% import "_icons.html" as icons %}
 <!doctype html>
 <html lang="en" data-theme="{{ request.cookies.get('theme', 'light') }}">
 <head>
@@ -57,7 +58,7 @@
         <input type="text" name="q" placeholder="Search parts, kits, clients, orders…" value="{{ request.args.get('q','') }}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
       </form>
       <div class="spacer"></div>
-      <button class="theme-toggle" id="themeToggle" type="button">🌓 Theme</button>
+      <button class="theme-toggle" id="themeToggle" type="button">{{ icons.icon('theme') }} Theme</button>
       <span class="user-chip">{{ current_user.name }} · {{ current_user.role }}</span>
       <a class="btn btn-sm" href="{{ url_for('auth.logout') }}">Log out</a>
     </div>
