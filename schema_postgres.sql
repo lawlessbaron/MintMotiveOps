@@ -748,6 +748,20 @@ CREATE TABLE users (
     created_at TEXT DEFAULT to_char(CURRENT_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')
 );
 
+-- Self-service "forgot password" one-time codes (emailed — see
+-- app/email_client.py and app/blueprints/auth.py). Never stores the raw
+-- code, only a hash of it; expires_at + attempts enforce a short TTL and a
+-- capped number of guesses instead of relying on the code's length alone.
+CREATE TABLE password_reset_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    code_hash TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    used INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT to_char(CURRENT_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')
+);
+
 -- =========================================================================
 -- Financial / compliance
 -- =========================================================================

@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{% block title %}MintMotive Ops{% endblock %}</title>
   <style>
     @font-face { font-family: 'Helvetica'; src: url('/static/fonts/Helvetica-Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; }
@@ -70,6 +71,21 @@
 
 <script>
 (function () {
+  // CSRF: every POST/PUT/PATCH/DELETE <form> gets the session's token
+  // injected as a hidden field, checked server-side in app/__init__.py's
+  // csrf_protect(). Done here once, globally, instead of hand-editing every
+  // form across every template.
+  var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+  document.querySelectorAll('form').forEach(function (form) {
+    var method = (form.getAttribute('method') || 'get').toLowerCase();
+    if (method === 'get' || form.querySelector('input[name="csrf_token"]')) return;
+    var input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'csrf_token';
+    input.value = csrfToken;
+    form.appendChild(input);
+  });
+
   var html = document.documentElement;
   var toggle = document.getElementById('themeToggle');
   if (toggle) {

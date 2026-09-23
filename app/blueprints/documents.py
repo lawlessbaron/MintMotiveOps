@@ -46,9 +46,18 @@ def index():
 def upload():
     db = get_db()
     f = request.form
-    path = save_upload(request.files.get("file"), "documents")
+    upload_file = request.files.get("file")
+    path = save_upload(upload_file, "documents")
     if not path:
-        flash("Please choose a file to upload.", "error")
+        if upload_file and upload_file.filename:
+            flash(
+                f"\"{upload_file.filename}\" isn't an allowed file type. Documents, images, CAD/Inventor "
+                f"files (step/stp/iges/stl/dxf/dwg/ipt/iam/etc.), and Arduino source (ino/h/cpp/zip) are "
+                f"accepted — other file types are blocked for security.",
+                "error",
+            )
+        else:
+            flash("Please choose a file to upload.", "error")
         return redirect(url_for("documents.index"))
     db.execute(
         "INSERT INTO documents (document_name, document_type_id, file_path, related_client_id, related_supplier_id, "

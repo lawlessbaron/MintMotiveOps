@@ -172,7 +172,14 @@ def add_bom_line(kit_id):
 def add_firmware(kit_id):
     db = get_db()
     f = request.form
-    file_path = save_upload(request.files.get("firmware_file"), "firmware")
+    firmware_file = request.files.get("firmware_file")
+    file_path = save_upload(firmware_file, "firmware")
+    if firmware_file and firmware_file.filename and not file_path:
+        flash(
+            f"\"{firmware_file.filename}\" isn't a recognized firmware file type "
+            f"(.bin/.hex/.uf2/.elf/.ino) — version label saved, but no file attached.",
+            "error",
+        )
     db.execute(
         "INSERT INTO firmware_versions (kit_id, version_label, file_path, release_notes) VALUES (?,?,?,?)",
         (kit_id, f["version_label"], file_path, f.get("release_notes")),

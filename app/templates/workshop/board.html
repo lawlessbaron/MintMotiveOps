@@ -59,6 +59,7 @@
       var body = new URLSearchParams();
       body.set('build_id', buildId);
       body.set('status', newStatus);
+      body.set('csrf_token', document.querySelector('meta[name="csrf-token"]').content);
       fetch("{{ url_for('workshop.move') }}", {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

@@ -248,6 +248,36 @@ def close_db(e=None):
         db.close()
 
 
+# Tables added after an install may already have run its one-time
+# schema.sql/schema_postgres.sql apply (see init_db below — that only fires
+# against a brand-new, empty database). Anything added here runs on every
+# startup, on every existing install too, so a new feature's table shows up
+# without anyone needing to run a manual migration.
+_MIGRATIONS_SQLITE = """
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    code_hash TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    used INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
+_MIGRATIONS_POSTGRES = """
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    code_hash TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    used INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT to_char(CURRENT_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')
+);
+"""
+
+
 def init_db(app):
     if app.config.get("DB_BACKEND") == "postgres":
         return _init_db_postgres(app)
@@ -260,7 +290,8 @@ def init_db(app):
     if fresh:
         with open(schema_path) as f:
             conn.executescript(f.read())
-        conn.commit()
+    conn.executescript(_MIGRATIONS_SQLITE)
+    conn.commit()
     conn.close()
     return fresh
 
@@ -277,7 +308,8 @@ def _init_db_postgres(app):
     if fresh:
         with open(schema_path) as f:
             cur.execute(f.read())
-        conn.commit()
+    cur.execute(_MIGRATIONS_POSTGRES)
+    conn.commit()
     cur.close()
     conn.close()
     return fresh
