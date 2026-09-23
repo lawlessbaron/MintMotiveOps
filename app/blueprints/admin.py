@@ -232,6 +232,10 @@ def numbering():
 @bp.route("/integrations", methods=["GET", "POST"])
 def integrations():
     db = get_db()
+    for name in ("Shopify", "Stripe"):
+        if db.execute("SELECT 1 FROM integration_settings WHERE integration_name=?", (name,)).fetchone() is None:
+            db.execute("INSERT INTO integration_settings (integration_name, status) VALUES (?, 'Inactive')", (name,))
+    db.commit()
     if request.method == "POST":
         f = request.form
         db.execute("UPDATE integration_settings SET connection_reference=? WHERE integration_name=?",
