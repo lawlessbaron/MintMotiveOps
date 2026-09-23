@@ -10,15 +10,54 @@ bp = Blueprint("auth", __name__)
 RESET_CODE_TTL_MINUTES = 15
 RESET_CODE_MAX_ATTEMPTS = 5
 
+# Login rate limiting. Two independent buckets: per-email (stops one
+# account being guessed from anywhere) and per-IP (stops one visitor
+# spraying guesses across many accounts). Both count failures in a rolling
+# window — a blocked attempt is never logged (see below), so the window
+# only advances on genuine password checks and naturally clears itself
+# LOGIN_LOCKOUT_WINDOW_MINUTES after the last real one, instead of an
+# attacker being able to keep a victim locked out indefinitely by hammering
+# through the lockout itself.
+LOGIN_LOCKOUT_WINDOW_MINUTES = 15
+LOGIN_MAX_FAILED_PER_EMAIL = 5
+LOGIN_MAX_FAILED_PER_IP = 20
+
+
+def _recent_failed_logins(db, column, value):
+    cutoff = (datetime.utcnow() - timedelta(minutes=LOGIN_LOCKOUT_WINDOW_MINUTES)).strftime("%Y-%m-%d %H:%M:%S")
+    return db.execute(
+        f"SELECT COUNT(*) c FROM login_attempts WHERE {column}=? AND success=0 AND created_at >= ?",
+        (value, cutoff),
+    ).fetchone()["c"]
+
 
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
+        ip = request.remote_addr or "unknown"
         db = get_db()
+
+        if _recent_failed_logins(db, "email", email) >= LOGIN_MAX_FAILED_PER_EMAIL:
+            flash(
+                f"Too many failed attempts for this account. Try again in a few minutes, or use "
+                f"Forgot Password below.",
+                "error",
+            )
+            return render_template("auth/login.html")
+        if _recent_failed_logins(db, "ip_address", ip) >= LOGIN_MAX_FAILED_PER_IP:
+            flash("Too many failed login attempts from this location. Try again in a few minutes.", "error")
+            return render_template("auth/login.html")
+
         user = db.execute("SELECT * FROM users WHERE lower(email) = ?", (email,)).fetchone()
-        if user is None or not check_password_hash(user["password_hash"], password):
+        success = user is not None and check_password_hash(user["password_hash"], password)
+        db.execute(
+            "INSERT INTO login_attempts (email, ip_address, success) VALUES (?,?,?)",
+            (email, ip, 1 if success else 0),
+        )
+        db.commit()
+        if not success:
             flash("Incorrect email or password.", "error")
             return render_template("auth/login.html")
         session.clear()

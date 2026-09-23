@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from werkzeug.security import generate_password_hash
 from ..db import get_db
 from ..utils import save_upload
-from .. import stripe_client
+from .. import stripe_client, email_client
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -233,7 +233,7 @@ def numbering():
 @bp.route("/integrations", methods=["GET", "POST"])
 def integrations():
     db = get_db()
-    for name in ("Shopify", "Stripe"):
+    for name in ("Shopify", "Stripe", "Email (SMTP)"):
         if db.execute("SELECT 1 FROM integration_settings WHERE integration_name=?", (name,)).fetchone() is None:
             db.execute("INSERT INTO integration_settings (integration_name, status) VALUES (?, 'Inactive')", (name,))
     db.commit()
@@ -246,7 +246,8 @@ def integrations():
         return redirect(url_for("admin.integrations"))
     integrations = db.execute("SELECT * FROM integration_settings ORDER BY integration_name").fetchall()
     return render_template(
-        "admin/integrations.html", integrations=integrations, stripe_configured=stripe_client.is_configured()
+        "admin/integrations.html", integrations=integrations, stripe_configured=stripe_client.is_configured(),
+        smtp_configured=email_client.is_configured(),
     )
 
 
@@ -266,6 +267,21 @@ def test_sync(name):
         else:
             status = "Inactive"
             result = "STRIPE_SECRET_KEY is not set in this environment — add it (and STRIPE_WEBHOOK_SECRET) in your deployment's environment variables, then re-run Test Sync."
+    elif name == "Email (SMTP)":
+        if email_client.is_configured():
+            status = "Active"
+            result = (
+                "SMTP_HOST/SMTP_USER/SMTP_PASSWORD are set — password reset codes and PO approval "
+                "notifications send for real. This does not send a test email; it only confirms the "
+                "credentials are present in the environment."
+            )
+        else:
+            status = "Inactive"
+            result = (
+                "SMTP_HOST/SMTP_USER/SMTP_PASSWORD are not set in this environment — password reset codes "
+                "and approval notifications are only logged server-side, never emailed. Set them (see "
+                ".env.example) then re-run Test Sync."
+            )
     else:
         result = "No test defined for this integration."
         status = "Inactive"

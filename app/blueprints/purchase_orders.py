@@ -1,10 +1,33 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort, current_app
 from ..db import (
     get_db, generate_number, receive_po_line, apply_landed_cost, now_str,
     spending_approval_needed, purchase_order_total,
 )
+from .. import email_client
 
 bp = Blueprint("purchase_orders", __name__, url_prefix="/purchase-orders")
+
+
+def _notify_owners_pending_approval(db, po, total):
+    """Best-effort — an SMTP hiccup here must never break the actual
+    approval-gating logic above, which already happened and committed by
+    the time this runs. Owners still see the Pending PO on their dashboard
+    and the Purchase Orders list either way; email is a convenience on
+    top, not the only way to find out."""
+    try:
+        owners = db.execute("SELECT email, name FROM users WHERE role='Owner'").fetchall()
+        supplier = db.execute("SELECT supplier_name FROM suppliers WHERE id=?", (po["supplier_id"],)).fetchone()
+        requester = db.execute("SELECT name FROM users WHERE id=?", (po["requested_by"],)).fetchone()
+        po_url = url_for("purchase_orders.detail", po_id=po["id"], _external=True)
+        body = (
+            f"{requester['name'] if requester else 'Someone'} tried to send {po['po_number']} to "
+            f"{supplier['supplier_name'] if supplier else 'a supplier'}, but its total (${total:,.2f}) is "
+            f"over their spending limit.\n\nReview and approve or reject it here:\n{po_url}\n\nMintMotive Ops"
+        )
+        for owner in owners:
+            email_client.send_email(owner["email"], f"{po['po_number']} needs your approval", body)
+    except Exception:
+        current_app.logger.warning(f"Failed to send PO approval notification for {po['po_number']}", exc_info=True)
 
 
 @bp.route("/")
@@ -79,6 +102,7 @@ def update_status(po_id):
                 "UPDATE purchase_orders SET approval_status='Pending' WHERE id=?", (po_id,)
             )
             db.commit()
+            _notify_owners_pending_approval(db, po, total)
             flash(
                 f"This PO (${total:,.2f}) is over your spending limit — sent for Owner approval "
                 f"instead of being marked {status}. It'll stay in Draft until approved.",

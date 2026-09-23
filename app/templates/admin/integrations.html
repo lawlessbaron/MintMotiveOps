@@ -27,6 +27,13 @@
     <strong>{{ 'key detected' if stripe_configured else 'STRIPE_SECRET_KEY not set' }}</strong>.
     Once set, invoices get a real "Pay Now" Stripe Checkout link automatically.
   </p>
+  {% elif i.integration_name == 'Email (SMTP)' %}
+  <p class="subtitle" style="margin-top:12px;">
+    Email is configured via environment variables (<code>SMTP_HOST</code>, <code>SMTP_PORT</code>,
+    <code>SMTP_USER</code>, <code>SMTP_PASSWORD</code>, <code>SMTP_FROM</code>) on your hosting platform —
+    see <code>.env.example</code>. Status: <strong>{{ 'credentials detected' if smtp_configured else 'not set — reset codes and approval emails are only logged, never sent' }}</strong>.
+    Once set, Forgot Password codes and Purchase Order approval notifications are actually emailed.
+  </p>
   {% else %}
   <form method="post" action="{{ url_for('admin.integrations') }}" style="margin-top:12px;">
     <input type="hidden" name="integration_name" value="{{ i.integration_name }}">

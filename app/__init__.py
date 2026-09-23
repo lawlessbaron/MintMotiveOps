@@ -4,6 +4,7 @@ import secrets
 import sqlite3
 from flask import Flask, abort, g, session, redirect, url_for, request
 from flask.json.provider import DefaultJSONProvider
+from werkzeug.middleware.proxy_fix import ProxyFix
 from . import db as db_module
 
 
@@ -22,6 +23,13 @@ class _Row_AwareJSONProvider(DefaultJSONProvider):
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
     app.json = _Row_AwareJSONProvider(app)
+    # Trust exactly one hop of X-Forwarded-For/-Proto/-Host — the
+    # TLS-terminating proxy every real deployment in DEPLOYMENT.md sits
+    # behind (Render, Fly, Caddy/Nginx). Without this, request.remote_addr
+    # is the proxy's own IP for every visitor alike, which would make
+    # login's per-IP rate limiting (see auth.py) useless — one shared
+    # bucket for the whole site instead of one per real visitor.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     os.makedirs(app.instance_path, exist_ok=True)
     database_url = os.environ.get("DATABASE_URL")
     app.config.from_mapping(

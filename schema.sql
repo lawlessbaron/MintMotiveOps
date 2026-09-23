@@ -782,6 +782,22 @@ CREATE TABLE password_reset_tokens (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Login rate limiting — every login POST logs one row here (success or
+-- not); auth.login checks the count of recent failures for the submitted
+-- email and for the client IP before even checking the password, and
+-- blocks with neither DB row inserted nor password checked once either
+-- threshold is hit. Deliberately keyed on the raw submitted email string,
+-- not a user_id FK — a nonexistent email still needs to count toward its
+-- own lockout, otherwise the lockout message itself would leak whether an
+-- account exists.
+CREATE TABLE login_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    ip_address TEXT,
+    success INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 -- =========================================================================
 -- Financial / compliance
 -- =========================================================================
