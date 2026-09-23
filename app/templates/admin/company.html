@@ -23,7 +23,7 @@
     {% if company.logo_path %}
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
       <img src="/static/{{ company.logo_path }}" alt="Current logo" style="height:40px; max-width:160px; object-fit:contain; background:var(--page-bg); border-radius:var(--r-sm); padding:4px;">
-      <span class="subtitle" style="margin:0;">Current logo — used in the sidebar and on quotes/invoices. Upload a new file below to replace it.</span>
+      <span class="subtitle" style="margin:0;">Current logo — used in the sidebar, the browser tab icon, and on quotes/invoices. Upload a new file below to replace it.</span>
     </div>
     {% endif %}
     <input type="file" name="logo" accept=".png,.jpg,.jpeg,.gif,.webp,.bmp,.svg,image/*">
