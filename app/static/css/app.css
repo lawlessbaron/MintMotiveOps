@@ -129,6 +129,12 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--r-lg);
   padding: var(--sp-5); margin-bottom: var(--sp-5);
   transition: border-color var(--t-med) var(--ease);
+  /* A wide data-table (6+ columns is common — Users & Roles, PO line
+     items, Warehouse locations) has nowhere else to go on a phone screen.
+     Without this, the table blows past the card's edge and drags the
+     entire page into horizontal scroll instead of just itself — this
+     keeps the card's own width fixed and lets only its contents scroll. */
+  overflow-x: auto;
 }
 .card h2 { margin-top: 0; font-size: 16.5px; }
 .card h2, .card h3 { margin-top: 0; }
