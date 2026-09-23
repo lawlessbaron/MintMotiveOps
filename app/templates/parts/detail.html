@@ -53,8 +53,8 @@
 <div class="form-row">
   <div class="card" style="flex:1; min-width:300px;">
     <h2>Sourcing Options</h2>
-    <table class="data-table"><tr><th>Supplier</th><th>Their SKU</th><th>Cost</th><th>Lead Time</th></tr>
-    {% for ps in part_suppliers %}<tr><td>{{ ps.supplier_name }}{% if ps.preferred %} <span class="badge accent">Preferred</span>{% endif %}</td><td>{{ ps.supplier_part_number or '—' }}</td><td>${{ '%.2f'|format(ps.supplier_cost) if ps.supplier_cost else '—' }}</td><td>{{ ps.lead_time_days or '—' }}d</td></tr>{% else %}<tr><td colspan="4" class="empty-state">No sourcing options yet.</td></tr>{% endfor %}
+    <table class="data-table"><tr><th>Supplier</th><th>Their SKU</th><th>Cost</th><th>Lead Time</th><th>Listing</th></tr>
+    {% for ps in part_suppliers %}<tr><td>{{ ps.supplier_name }}{% if ps.preferred %} <span class="badge accent">Preferred</span>{% endif %}</td><td>{{ ps.supplier_part_number or '—' }}</td><td>${{ '%.2f'|format(ps.supplier_cost) if ps.supplier_cost else '—' }}</td><td>{{ ps.lead_time_days or '—' }}d</td><td>{% if ps.source_url %}<a href="{{ ps.source_url }}" target="_blank" rel="noopener">View ↗</a>{% else %}—{% endif %}</td></tr>{% else %}<tr><td colspan="5" class="empty-state">No sourcing options yet.</td></tr>{% endfor %}
     </table>
     <details style="margin-top:10px;"><summary class="btn btn-sm" style="display:inline-block;cursor:pointer;">+ Add Sourcing Option</summary>
       <form method="post" action="{{ url_for('parts.add_supplier_link', part_id=part.id) }}" style="margin-top:10px;">

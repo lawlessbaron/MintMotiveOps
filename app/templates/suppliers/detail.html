@@ -19,8 +19,8 @@
 </div>
 <div class="form-row">
   <div class="card" style="flex:1;min-width:300px;"><h2>Parts Supplied</h2>
-    <table class="data-table"><tr><th>Part</th><th>Their SKU</th><th>Cost</th></tr>
-    {% for p in parts %}<tr><td><a class="row-link" href="{{ url_for('parts.detail', part_id=p.id) }}">{{ p.part_name }}</a></td><td>{{ p.supplier_part_number or '—' }}</td><td>{{ '$%.2f'|format(p.supplier_cost) if p.supplier_cost else '—' }}</td></tr>{% else %}<tr><td colspan="3" class="empty-state">None yet.</td></tr>{% endfor %}
+    <table class="data-table"><tr><th>Part</th><th>Their SKU</th><th>Cost</th><th>Listing</th></tr>
+    {% for p in parts %}<tr><td><a class="row-link" href="{{ url_for('parts.detail', part_id=p.id) }}">{{ p.part_name }}</a></td><td>{{ p.supplier_part_number or '—' }}</td><td>{{ '$%.2f'|format(p.supplier_cost) if p.supplier_cost else '—' }}</td><td>{% if p.source_url %}<a href="{{ p.source_url }}" target="_blank" rel="noopener">View ↗</a>{% else %}—{% endif %}</td></tr>{% else %}<tr><td colspan="4" class="empty-state">None yet.</td></tr>{% endfor %}
     </table>
   </div>
   <div class="card" style="flex:1;min-width:300px;"><h2>Purchase Orders</h2>
