@@ -1,4 +1,6 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+import csv
+import io
+from flask import Blueprint, render_template, request, redirect, url_for, flash, Response
 from ..db import get_db, generate_number, default_margin_for_part, part_sell_price, part_available_qty
 from ..utils import save_upload
 
@@ -24,6 +26,51 @@ def index():
     categories = db.execute("SELECT * FROM part_categories WHERE active=1 ORDER BY name").fetchall()
     return render_template("parts/index.html", parts=parts, categories=categories, q=q, category_id=category_id,
                             sell_price=part_sell_price, available_qty=part_available_qty)
+
+
+@bp.route("/export-labels.csv")
+def export_labels_csv():
+    """CSV for DYMO Connect's data-merge import (Import > browse to this
+    file > map columns to a QR code object + text objects on a saved label
+    layout) — the LabelManager 640CB has no print API of its own, but DYMO
+    Connect can batch-print from a CSV like this. Respects the same
+    search/category filters as the Inventory list so exporting "what I'm
+    looking at" works as expected.
+
+    QR Data mirrors quicklinks.qr_part's own target resolution (a part's
+    Label Link Type/Label URL if set) so the same QR a part already shows
+    elsewhere in the app is what prints here — falling back to the plain
+    part number when a part has no label link configured, so every row
+    still gets a scannable code instead of being skipped.
+    """
+    db = get_db()
+    q = request.args.get("q", "").strip()
+    category_id = request.args.get("category_id", "")
+    sql = "SELECT id, part_name, part_number, label_link_type, label_url FROM parts WHERE 1=1"
+    args = []
+    if q:
+        sql += " AND (part_name LIKE ? OR part_number LIKE ?)"
+        args += [f"%{q}%", f"%{q}%"]
+    if category_id:
+        sql += " AND category_id = ?"
+        args.append(category_id)
+    sql += " ORDER BY part_name"
+    parts = db.execute(sql, args).fetchall()
+
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["Part Number", "Part Name", "QR Data"])
+    for p in parts:
+        qr_data = p["label_url"] or (
+            url_for("parts.detail", part_id=p["id"], _external=True)
+            if p["label_link_type"] == "Internal Record" else None
+        ) or p["part_number"] or str(p["id"])
+        writer.writerow([p["part_number"] or "", p["part_name"], qr_data])
+
+    return Response(
+        out.getvalue(), mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=part-labels.csv"},
+    )
 
 
 def _lookups(db):

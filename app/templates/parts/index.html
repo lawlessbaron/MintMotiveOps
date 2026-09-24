@@ -3,7 +3,10 @@
 {% block content %}
 <div class="page-header">
   <div><h1>Inventory</h1><div class="subtitle">Parts with real fields — not a generic name/status/value form.</div></div>
-  <a class="btn btn-accent" href="{{ url_for('parts.new') }}">+ New Part</a>
+  <div style="display:flex; gap:8px;">
+    <a class="btn" href="{{ url_for('parts.export_labels_csv', q=q, category_id=category_id) }}" title="CSV for DYMO Connect's Import feature — map to a QR code object + text objects on a saved label layout, see Tools &gt; Labels &amp; Quick Links">Export Labels CSV</a>
+    <a class="btn btn-accent" href="{{ url_for('parts.new') }}">+ New Part</a>
+  </div>
 </div>
 <div class="card">
   <form class="form-row" method="get">
