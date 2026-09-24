@@ -54,7 +54,9 @@ def company():
                 "error",
             )
         extra = ", logo_path=?" if logo_path else ""
-        args = [f.get("company_name"), f.get("abn"), f.get("address"), f.get("default_currency", "AUD"),
+        args = [f.get("company_name"), f.get("abn"), f.get("address"), f.get("tagline"),
+                1 if f.get("show_company_name") else 0, 1 if f.get("show_tagline") else 0,
+                f.get("default_currency", "AUD"),
                 float(f.get("default_margin_pct") or 0), float(f.get("default_gst_rate_pct") or 0),
                 f.get("default_client_payment_term_id") or None, f.get("default_supplier_payment_term_id") or None,
                 int(f.get("invoice_reminder_days") or 7),
@@ -64,7 +66,8 @@ def company():
         if logo_path:
             args.append(logo_path)
         db.execute(
-            "UPDATE company_settings SET company_name=?, abn=?, address=?, default_currency=?, default_margin_pct=?, "
+            "UPDATE company_settings SET company_name=?, abn=?, address=?, tagline=?, show_company_name=?, "
+            "show_tagline=?, default_currency=?, default_margin_pct=?, "
             "default_gst_rate_pct=?, default_client_payment_term_id=?, default_supplier_payment_term_id=?, "
             "invoice_reminder_days=?, packing_include_weight=?, packing_include_dimensions=?, packing_include_value=?, "
             "packing_include_customs_description=?, packing_include_hs_code=?, packing_include_origin_country=?"

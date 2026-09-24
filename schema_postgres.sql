@@ -96,6 +96,9 @@ CREATE TABLE client_payment_terms (
 CREATE TABLE company_settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),           -- singleton row
     company_name TEXT DEFAULT 'Mint Motive Solutions',
+    tagline TEXT,
+    show_company_name INTEGER NOT NULL DEFAULT 1,
+    show_tagline INTEGER NOT NULL DEFAULT 1,
     abn TEXT,
     address TEXT,
     logo_path TEXT,
