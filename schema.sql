@@ -11,6 +11,7 @@ CREATE TABLE company_settings (
     tagline TEXT,
     show_company_name INTEGER NOT NULL DEFAULT 1,
     show_tagline INTEGER NOT NULL DEFAULT 1,
+    favicon_path TEXT,
     abn TEXT,
     address TEXT,
     logo_path TEXT,

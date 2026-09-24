@@ -11,7 +11,7 @@
        what produces that muddy off-brand tint instead of the real theme. -->
   <meta name="color-scheme" content="light dark">
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  {% if company.logo_path %}<link rel="icon" href="/static/{{ company.logo_path }}">{% endif %}
+  {% if company.favicon_path or company.logo_path %}<link rel="icon" href="/static/{{ company.favicon_path or company.logo_path }}">{% endif %}
   <title>{% block title %}MintMotive Ops{% endblock %}</title>
   <style>
     @font-face { font-family: 'Helvetica'; src: url('/static/fonts/Helvetica-Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; }

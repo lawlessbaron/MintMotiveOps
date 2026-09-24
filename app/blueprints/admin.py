@@ -50,10 +50,19 @@ def company():
         if logo_file and logo_file.filename and not logo_path:
             flash(
                 f"Logo NOT saved — \"{logo_file.filename}\" isn't a supported image type "
-                "(PNG, JPG, GIF, WEBP, BMP, SVG). Everything else below was saved.",
+                "(PNG, JPG, GIF, WEBP, BMP, SVG, ICO). Everything else below was saved.",
+                "error",
+            )
+        favicon_file = request.files.get("favicon")
+        favicon_path = save_upload(favicon_file, "company")
+        if favicon_file and favicon_file.filename and not favicon_path:
+            flash(
+                f"Favicon NOT saved — \"{favicon_file.filename}\" isn't a supported image type "
+                "(PNG, JPG, GIF, WEBP, BMP, SVG, ICO). Everything else below was saved.",
                 "error",
             )
         extra = ", logo_path=?" if logo_path else ""
+        extra += ", favicon_path=?" if favicon_path else ""
         args = [f.get("company_name"), f.get("abn"), f.get("address"), f.get("tagline"),
                 1 if f.get("show_company_name") else 0, 1 if f.get("show_tagline") else 0,
                 f.get("default_currency", "AUD"),
@@ -65,6 +74,8 @@ def company():
                 1 if f.get("packing_include_hs_code") else 0, 1 if f.get("packing_include_origin_country") else 0]
         if logo_path:
             args.append(logo_path)
+        if favicon_path:
+            args.append(favicon_path)
         db.execute(
             "UPDATE company_settings SET company_name=?, abn=?, address=?, tagline=?, show_company_name=?, "
             "show_tagline=?, default_currency=?, default_margin_pct=?, "
