@@ -39,7 +39,8 @@ def new():
         db.commit()
         flash(f"RMA {number} logged.", "success")
         return redirect(url_for("rmas.detail", rma_id=cur.lastrowid))
-    return render_template("rmas/form.html", builds=builds, clients=clients)
+    preselect_build_id = request.args.get("build_id", type=int)
+    return render_template("rmas/form.html", builds=builds, clients=clients, preselect_build_id=preselect_build_id)
 
 
 @bp.route("/<int:rma_id>")

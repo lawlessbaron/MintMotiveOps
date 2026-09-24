@@ -133,8 +133,22 @@ def index():
         "SELECT COALESCE(SUM(quantity_on_hand * unit_cost),0) v FROM parts "
         "WHERE (quantity_on_hand - quantity_reserved) <= reorder_threshold"
     ).fetchone()["v"]
+
+    quote_stale_days = db.execute("SELECT quote_stale_days FROM company_settings WHERE id=1").fetchone()["quote_stale_days"] or 7
+    stale_cutoff = (datetime.utcnow() - timedelta(days=quote_stale_days)).strftime("%Y-%m-%d 23:59:59")
+    stale_quotes = db.execute(
+        "SELECT q.*, c.client_name FROM quotes q JOIN clients c ON c.id=q.client_id "
+        "WHERE q.status IN ('Draft','Sent') AND q.quote_date <= ? ORDER BY q.quote_date ASC LIMIT 8",
+        (stale_cutoff,),
+    ).fetchall()
+    stale_quotes_count = db.execute(
+        "SELECT COUNT(*) c FROM quotes WHERE status IN ('Draft','Sent') AND quote_date <= ?",
+        (stale_cutoff,),
+    ).fetchone()["c"]
+
     return render_template(
         "dashboard/index.html", stats=stats, trends=trends, revenue_chart=revenue_chart,
         revenue_chart_max=revenue_chart_max, recent_orders=recent_orders,
         active_builds=active_builds, low_stock=low_stock, low_stock_value=low_stock_value,
+        stale_quotes=stale_quotes, stale_quotes_count=stale_quotes_count, quote_stale_days=quote_stale_days,
     )

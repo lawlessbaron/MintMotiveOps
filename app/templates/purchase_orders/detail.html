@@ -5,6 +5,7 @@
 <div class="page-header">
   <div><h1>{{ po.po_number }}</h1><div class="subtitle">{{ po.supplier_name }}</div></div>
   <div style="display:flex; gap:8px;">
+    {% if po.status not in ('Received','Cancelled') %}<a class="btn" href="{{ url_for('purchase_orders.scan_receive', po_id=po.id) }}">Scan to Receive</a>{% endif %}
     <form method="post" action="{{ url_for('purchase_orders.update_status', po_id=po.id) }}">
       <select name="status" onchange="this.form.submit()">
         {% for s in ['Draft','Sent','Confirmed','Partially Received','Received','Cancelled'] %}
@@ -62,7 +63,10 @@
   {% for l in lines %}
   <tr>
     <td>{{ l.part_name }} <span class="subtitle">{{ l.part_number }}</span></td>
-    <td>{{ l.quantity_ordered }}</td><td>{{ l.quantity_received }}</td><td>${{ "%.2f"|format(l.unit_cost) }}</td>
+    <td>{{ l.quantity_ordered }}</td><td>{{ l.quantity_received }}</td>
+    <td>${{ "%.2f"|format(l.unit_cost) }}
+      {% if price_alerts.get(l.id) %}<br><span style="color:#b3261e; font-size:12px;">{{ '+' if price_alerts[l.id].pct > 0 }}{{ price_alerts[l.id].pct|int }}% vs last (${{ "%.2f"|format(price_alerts[l.id].previous) }})</span>{% endif %}
+    </td>
     <td>${{ "%.2f"|format(l.quantity_ordered * l.unit_cost) }}</td>
     <td>
       <form method="post" action="{{ url_for('purchase_orders.receive_line', po_id=po.id, line_id=l.id) }}" style="display:flex; gap:6px;">

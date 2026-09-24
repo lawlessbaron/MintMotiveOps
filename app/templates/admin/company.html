@@ -53,6 +53,7 @@
     <h3>Packing Lists &amp; Reminders</h3>
     <div class="form-row">
       <div><label>Invoice Reminder Days</label><input type="number" name="invoice_reminder_days" value="{{ company.invoice_reminder_days }}"></div>
+      <div><label>Quote Follow-up Days</label><input type="number" name="quote_stale_days" value="{{ company.quote_stale_days }}"></div>
     </div>
     <p class="subtitle">Fields printed on packing/customs PDFs:</p>
     {% for field, label in [('packing_include_weight','Weight'),('packing_include_dimensions','Dimensions'),('packing_include_value','Declared Value'),('packing_include_customs_description','Customs Description'),('packing_include_hs_code','Harmonised Code'),('packing_include_origin_country','Country of Origin')] %}
