@@ -13,6 +13,8 @@ CREATE TABLE company_settings (
     show_tagline INTEGER NOT NULL DEFAULT 1,
     favicon_path TEXT,
     quote_stale_days INTEGER NOT NULL DEFAULT 7,
+    review_request_days INTEGER NOT NULL DEFAULT 7,
+    tasks_api_key TEXT,
     abn TEXT,
     address TEXT,
     logo_path TEXT,
@@ -658,6 +660,7 @@ CREATE TABLE builds (
     ship_date TEXT,
     stock_reserved INTEGER NOT NULL DEFAULT 0,   -- internal flag: has this build's BOM been reserved yet
     stock_consumed INTEGER NOT NULL DEFAULT 0,   -- internal flag: has this build's BOM been consumed yet
+    review_request_sent_at TEXT,   -- set once the post-delivery review request email goes out, so it never re-sends
     notes TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );

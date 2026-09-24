@@ -6,8 +6,10 @@ and shown at Administration > Local Agent) instead of the normal browser
 login session, and this blueprint is exempted from the app's login gate in
 app/__init__.py — see require_login()."""
 import functools
+from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
-from ..db import get_db
+from ..db import get_db, now_str
+from .. import email_client
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -21,6 +23,23 @@ def _require_api_key(view):
         provided = request.headers.get("X-API-Key")
         if not expected or not provided or provided != expected:
             return jsonify({"ok": False, "error": "invalid or missing X-API-Key"}), 401
+        return view(*args, **kwargs)
+    return wrapped
+
+
+def _require_tasks_key(view):
+    """Separate from _require_api_key/local_agent_api_key on purpose — this
+    key is handed to an external cron service (e.g. cron-job.org) to ping
+    this endpoint daily, a different trust boundary than the workshop PC's
+    local agent, so rotating one never affects the other."""
+    @functools.wraps(view)
+    def wrapped(*args, **kwargs):
+        db = get_db()
+        company = db.execute("SELECT tasks_api_key FROM company_settings WHERE id=1").fetchone()
+        expected = company["tasks_api_key"] if company else None
+        provided = request.args.get("key") or request.headers.get("X-API-Key")
+        if not expected or not provided or provided != expected:
+            return jsonify({"ok": False, "error": "invalid or missing key"}), 401
         return view(*args, **kwargs)
     return wrapped
 
@@ -88,3 +107,56 @@ def power_readings():
         inserted += 1
     db.commit()
     return jsonify({"ok": True, "inserted": inserted})
+
+
+@bp.route("/tasks/send-review-requests")
+@_require_tasks_key
+def send_review_requests():
+    """Meant to be pinged daily by an external scheduler (this app has no
+    background job runner of its own — see Administration > Scheduled
+    Tasks for the URL + key to give a free cron service). Idempotent: a
+    build only ever gets review_request_sent_at set once, so pinging this
+    ten times a day or once a week both do the same thing — only genuinely
+    new due units go out each time."""
+    db = get_db()
+    company = db.execute("SELECT review_request_days FROM company_settings WHERE id=1").fetchone()
+    days = company["review_request_days"] or 7
+    cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+    review_link = db.execute(
+        "SELECT url FROM quick_links WHERE link_type='Google Review Page' AND active=1 ORDER BY id LIMIT 1"
+    ).fetchone()
+
+    due_builds = db.execute(
+        "SELECT b.id, b.build_number, c.client_name, c.email AS client_email FROM builds b "
+        "JOIN clients c ON c.id = b.client_id "
+        "WHERE b.status IN ('Shipped','Complete') AND b.ship_date IS NOT NULL "
+        "AND b.ship_date <= ? AND b.review_request_sent_at IS NULL",
+        (cutoff,),
+    ).fetchall()
+
+    sent, skipped = [], []
+    for b in due_builds:
+        if not b["client_email"]:
+            skipped.append({"build_number": b["build_number"], "reason": "client has no email"})
+            continue
+        if not review_link:
+            skipped.append({"build_number": b["build_number"], "reason": "no active Google Review Page quick link configured"})
+            continue
+        body = (
+            f"Hi {b['client_name']},\n\nHope you're enjoying your {b['build_number']} build! "
+            f"If you have a minute, a quick review would really help us out:\n{review_link['url']}\n\n"
+            f"Thanks,\nMintMotive"
+        )
+        try:
+            ok = email_client.send_email(b["client_email"], "How's everything going?", body)
+        except Exception:
+            ok = False
+        if ok:
+            db.execute("UPDATE builds SET review_request_sent_at=? WHERE id=?", (now_str(), b["id"]))
+            db.commit()
+            sent.append(b["build_number"])
+        else:
+            skipped.append({"build_number": b["build_number"], "reason": "SMTP not configured or send failed — will retry next run"})
+
+    return jsonify({"ok": True, "sent": sent, "skipped": skipped})

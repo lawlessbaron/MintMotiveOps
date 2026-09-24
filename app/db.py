@@ -349,6 +349,9 @@ ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS show_company_name INTEGER 
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS show_tagline INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS favicon_path TEXT;
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS quote_stale_days INTEGER NOT NULL DEFAULT 7;
+ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS review_request_days INTEGER NOT NULL DEFAULT 7;
+ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS tasks_api_key TEXT;
+ALTER TABLE builds ADD COLUMN IF NOT EXISTS review_request_sent_at TEXT;
 """
 
 
@@ -401,6 +404,9 @@ def init_db(app):
     _ensure_column_sqlite(conn, "company_settings", "show_tagline", "INTEGER NOT NULL DEFAULT 1")
     _ensure_column_sqlite(conn, "company_settings", "favicon_path", "TEXT")
     _ensure_column_sqlite(conn, "company_settings", "quote_stale_days", "INTEGER NOT NULL DEFAULT 7")
+    _ensure_column_sqlite(conn, "company_settings", "review_request_days", "INTEGER NOT NULL DEFAULT 7")
+    _ensure_column_sqlite(conn, "company_settings", "tasks_api_key", "TEXT")
+    _ensure_column_sqlite(conn, "builds", "review_request_sent_at", "TEXT")
     conn.commit()
     conn.close()
     return fresh
