@@ -4,6 +4,18 @@
 <div class="page-header"><div><h1>Labels &amp; Quick Links</h1><div class="subtitle">Manage the URLs printed on part/kit labels, plus reusable shortcut links (review pages, help docs, videos) sent to clients.</div></div></div>
 
 <div class="card">
+  <h2>Batch Printing Stock Labels (DYMO LabelManager 640CB)</h2>
+  <p class="subtitle">The 640CB has no direct print API, but DYMO Connect for Desktop can batch-print a whole shelf's worth of labels from a CSV import — one-time setup, then re-import a fresh export whenever stock changes.</p>
+  <ol style="margin:0 0 var(--sp-3) 20px; font-size:13.5px; color:var(--text-secondary);">
+    <li><a href="{{ url_for('parts.export_labels_csv') }}">Export Labels CSV</a> from Inventory (also available there, filtered to whatever you're viewing).</li>
+    <li>In DYMO Connect for Desktop, design a label once: add a QR Code object and one or two Text objects, then click <strong>Import</strong> &gt; browse to the CSV.</li>
+    <li>Map <strong>QR Data</strong> to the QR Code object, and <strong>Part Number</strong>/<strong>Part Name</strong> to the text objects.</li>
+    <li>Print, then <strong>save the layout</strong> — next time, just re-import a fresh CSV export and print again.</li>
+  </ol>
+  <p class="subtitle">QR Data uses each part's Label URL below when set (so it's the same code shown elsewhere in the app), otherwise falls back to the plain part number.</p>
+</div>
+
+<div class="card">
   <h2>Quick Links</h2>
   <label>Select Quick Link</label>
   <select onchange="loadItem('link', this.value, {{ links|tojson }})">
