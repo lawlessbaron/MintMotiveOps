@@ -347,6 +347,7 @@ ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS smtp_from TEXT;
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS tagline TEXT;
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS show_company_name INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS show_tagline INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS favicon_path TEXT;
 """
 
 
@@ -397,6 +398,7 @@ def init_db(app):
     _ensure_column_sqlite(conn, "company_settings", "tagline", "TEXT")
     _ensure_column_sqlite(conn, "company_settings", "show_company_name", "INTEGER NOT NULL DEFAULT 1")
     _ensure_column_sqlite(conn, "company_settings", "show_tagline", "INTEGER NOT NULL DEFAULT 1")
+    _ensure_column_sqlite(conn, "company_settings", "favicon_path", "TEXT")
     conn.commit()
     conn.close()
     return fresh
