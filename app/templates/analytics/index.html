@@ -81,6 +81,28 @@
 </div>
 {% endif %}
 
+{% if 'build_bottleneck' not in hidden_widgets %}
+<div class="card">
+  <h2>Build Bottleneck Report</h2>
+  <p class="subtitle">Routing steps that consistently run over their estimate (at least 2 completed builds), worst first.</p>
+  {% if build_bottleneck %}
+  <table class="data-table">
+    <tr><th>Step</th><th>Kit</th><th>Runs</th><th>Estimated</th><th>Actual Avg</th><th>Overrun</th></tr>
+    {% for b in build_bottleneck %}
+    <tr>
+      <td>{{ b.step_name }}</td>
+      <td>{{ b.kit_name }}</td>
+      <td>{{ b.run_count }}</td>
+      <td>{{ b.estimated_minutes }} min</td>
+      <td>{{ b.avg_actual_minutes }} min</td>
+      <td style="color:{{ '#b3261e' if b.overrun_minutes > 0 else 'inherit' }};">{{ '+' if b.overrun_minutes > 0 }}{{ b.overrun_minutes }} min{% if b.overrun_pct is not none %} ({{ '+' if b.overrun_pct > 0 }}{{ b.overrun_pct|int }}%){% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<div class="empty-state">Not enough completed build steps logged yet — need at least 2 runs of the same step.</div>{% endif %}
+</div>
+{% endif %}
+
 {% if 'currency_converter' not in hidden_widgets and converter %}
 <div class="card">
   <h2>Currency Converter</h2>
@@ -99,6 +121,24 @@
     <tr><th>Currency</th><th>Value</th></tr>
     {% for r in converter.results %}
     <tr><td>{{ r.currency }}</td><td>{{ '%.2f' % r.value }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if 'cash_flow' not in hidden_widgets and cash_flow %}
+<div class="card">
+  <h2>Cash Flow Forecast</h2>
+  <p class="subtitle">Expected in (unpaid invoices, by due date) vs expected out (unreceived PO value, by expected delivery) — a forward look, not a ledger.</p>
+  <table class="data-table">
+    <tr><th>Window</th><th>Expected In</th><th>Expected Out</th><th>Net</th></tr>
+    {% for b in cash_flow %}
+    <tr>
+      <td>{{ b.label }}</td>
+      <td>${{ "%.2f"|format(b.in) }}</td>
+      <td>${{ "%.2f"|format(b.out) }}</td>
+      <td style="color:{{ '#b3261e' if b.net < 0 else 'inherit' }}; font-weight:600;">{{ '-' if b.net < 0 }}${{ "%.2f"|format(b.net|abs) }}</td>
+    </tr>
     {% endfor %}
   </table>
 </div>

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Scan to Receive — {{ po.po_number }} — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Scan to Receive</h1><div class="subtitle">{{ po.po_number }} · {{ po.supplier_name }}</div></div>
+  <a class="btn" href="{{ url_for('purchase_orders.detail', po_id=po.id) }}">Back to PO</a>
+</div>
+
+<div class="card" style="max-width:480px;">
+  <form method="post">
+    <label>Scan a part's QR or type its part number, then press Enter</label>
+    <input type="text" name="code" autofocus autocomplete="off" style="font-size:18px; padding:14px;">
+  </form>
+</div>
+
+<div class="card">
+  <h2>Lines on this PO</h2>
+  <table class="data-table">
+    <tr><th>Part</th><th>Number</th><th>Received</th><th>Ordered</th></tr>
+    {% for l in lines %}
+    <tr {% if l.quantity_received >= l.quantity_ordered %}style="color:var(--text-secondary);"{% endif %}>
+      <td>{{ l.part_name }}</td>
+      <td>{{ l.part_number or '—' }}</td>
+      <td>{{ l.quantity_received }}</td>
+      <td>{{ l.quantity_ordered }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

@@ -7,7 +7,7 @@
     <label>Build (optional — a returned physical unit)</label>
     <select name="build_id">
       <option value="">—</option>
-      {% for b in builds %}<option value="{{ b.id }}">{{ b.build_number }} · {{ b.kit_name }} ({{ b.serial_number or 'no serial' }})</option>{% endfor %}
+      {% for b in builds %}<option value="{{ b.id }}" {{ 'selected' if preselect_build_id and b.id == preselect_build_id }}>{{ b.build_number }} · {{ b.kit_name }} ({{ b.serial_number or 'no serial' }})</option>{% endfor %}
     </select>
     <label>Client (optional if a Build is picked — defaults from it)</label>
     <select name="client_id">

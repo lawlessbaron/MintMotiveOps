@@ -11,6 +11,15 @@
   <span class="badge accent">{{ build.status }}</span>
 </div>
 
+{% if build.status in ['Shipped', 'Complete'] %}
+<div class="card" style="max-width:320px;">
+  <h2>RMA Label</h2>
+  <p class="subtitle">Scan this from the unit's printed label to start an RMA with this build pre-selected.</p>
+  <img src="{{ url_for('quicklinks.qr_build', build_id=build.id) }}" alt="Scan to start an RMA for {{ build.build_number }}" width="120" height="120" onerror="this.style.display='none';">
+  <p class="subtitle" style="margin-top:var(--sp-2);"><a href="{{ url_for('rmas.new', build_id=build.id) }}">Or start the RMA directly →</a></p>
+</div>
+{% endif %}
+
 {% if show_email_draft %}
 <div class="card" style="border-color: var(--accent); border-width:2px;">
   <h2>Completion Email — review before sending</h2>

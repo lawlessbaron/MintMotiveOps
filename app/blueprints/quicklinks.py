@@ -139,6 +139,18 @@ def qr_kit(kit_id):
     return _qr_png_response(kit["customer_label_url"])
 
 
+@bp.route("/qr/build/<int:build_id>.png")
+def qr_build(build_id):
+    """Scanning this from a shipped unit's label opens Start RMA with the
+    build pre-selected — see rmas.new's build_id query param."""
+    db = get_db()
+    build = db.execute("SELECT id FROM builds WHERE id=?", (build_id,)).fetchone()
+    if build is None:
+        abort(404)
+    target = url_for("rmas.new", build_id=build["id"], _external=True)
+    return _qr_png_response(target)
+
+
 @bp.route("/qr/link/<int:link_id>.png")
 def qr_link(link_id):
     db = get_db()

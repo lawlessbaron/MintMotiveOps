@@ -12,6 +12,7 @@ CREATE TABLE company_settings (
     show_company_name INTEGER NOT NULL DEFAULT 1,
     show_tagline INTEGER NOT NULL DEFAULT 1,
     favicon_path TEXT,
+    quote_stale_days INTEGER NOT NULL DEFAULT 7,
     abn TEXT,
     address TEXT,
     logo_path TEXT,

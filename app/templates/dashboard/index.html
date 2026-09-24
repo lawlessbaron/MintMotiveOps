@@ -8,17 +8,42 @@
 <div class="card" style="border-color:#b3261e;">
   <h2 style="color:#b3261e; margin-top:0; display:flex; align-items:center; gap:8px;">{{ icons.icon('warning') }} {{ stats.low_stock_parts }} part{{ 's' if stats.low_stock_parts != 1 }} at or below reorder threshold</h2>
   <p class="subtitle">${{ "%.2f"|format(low_stock_value) }} of on-hand stock is sitting in parts that need reordering.</p>
-  <table class="data-table"><tr><th>Part</th><th>Available</th><th>Reorder At</th><th>Stock Value</th></tr>
+  <table class="data-table"><tr><th>Part</th><th>Available</th><th>Reorder At</th><th>Stock Value</th><th></th></tr>
   {% for p in low_stock %}
   <tr>
     <td><a class="row-link" href="{{ url_for('parts.detail', part_id=p.id) }}">{{ p.part_name }}</a></td>
     <td>{{ p.quantity_on_hand - p.quantity_reserved }}</td>
     <td>{{ p.reorder_threshold }}</td>
     <td>${{ "%.2f"|format(p.quantity_on_hand * p.unit_cost) }}</td>
+    <td>
+      {% if p.preferred_supplier_id %}
+      <form method="post" action="{{ url_for('purchase_orders.auto_draft', part_id=p.id) }}">
+        <button class="btn btn-sm" type="submit">Draft PO</button>
+      </form>
+      {% else %}<span class="subtitle">no preferred supplier</span>{% endif %}
+    </td>
   </tr>
   {% endfor %}
   </table>
   {% if stats.low_stock_parts > low_stock|length %}<p class="subtitle" style="margin:var(--sp-3) 0 0;"><a href="{{ url_for('parts.index') }}">View all {{ stats.low_stock_parts }} in Inventory →</a></p>{% endif %}
+</div>
+{% endif %}
+
+{% if stale_quotes %}
+<div class="card" style="border-color:#b3261e;">
+  <h2 style="color:#b3261e; margin-top:0; display:flex; align-items:center; gap:8px;">{{ icons.icon('quotes') }} {{ stale_quotes_count }} quote{{ 's' if stale_quotes_count != 1 }} sitting {{ quote_stale_days }}+ days with no response</h2>
+  <p class="subtitle">Draft or Sent quotes older than your Quote Follow-up Days setting (Administration &gt; Company) — worth a nudge to the client.</p>
+  <table class="data-table"><tr><th>Quote</th><th>Client</th><th>Status</th><th>Quote Date</th></tr>
+  {% for q in stale_quotes %}
+  <tr>
+    <td><a class="row-link" href="{{ url_for('quotes.detail', quote_id=q.id) }}">{{ q.quote_number }}</a></td>
+    <td>{{ q.client_name }}</td>
+    <td>{{ q.status }}</td>
+    <td>{{ q.quote_date[:10] if q.quote_date else '—' }}</td>
+  </tr>
+  {% endfor %}
+  </table>
+  {% if stale_quotes_count > stale_quotes|length %}<p class="subtitle" style="margin:var(--sp-3) 0 0;"><a href="{{ url_for('quotes.index') }}">View all {{ stale_quotes_count }} in Quotes →</a></p>{% endif %}
 </div>
 {% endif %}
 

@@ -68,7 +68,7 @@ def company():
                 f.get("default_currency", "AUD"),
                 float(f.get("default_margin_pct") or 0), float(f.get("default_gst_rate_pct") or 0),
                 f.get("default_client_payment_term_id") or None, f.get("default_supplier_payment_term_id") or None,
-                int(f.get("invoice_reminder_days") or 7),
+                int(f.get("invoice_reminder_days") or 7), int(f.get("quote_stale_days") or 7),
                 1 if f.get("packing_include_weight") else 0, 1 if f.get("packing_include_dimensions") else 0,
                 1 if f.get("packing_include_value") else 0, 1 if f.get("packing_include_customs_description") else 0,
                 1 if f.get("packing_include_hs_code") else 0, 1 if f.get("packing_include_origin_country") else 0]
@@ -80,7 +80,7 @@ def company():
             "UPDATE company_settings SET company_name=?, abn=?, address=?, tagline=?, show_company_name=?, "
             "show_tagline=?, default_currency=?, default_margin_pct=?, "
             "default_gst_rate_pct=?, default_client_payment_term_id=?, default_supplier_payment_term_id=?, "
-            "invoice_reminder_days=?, packing_include_weight=?, packing_include_dimensions=?, packing_include_value=?, "
+            "invoice_reminder_days=?, quote_stale_days=?, packing_include_weight=?, packing_include_dimensions=?, packing_include_value=?, "
             "packing_include_customs_description=?, packing_include_hs_code=?, packing_include_origin_country=?"
             + extra + " WHERE id=1",
             args,

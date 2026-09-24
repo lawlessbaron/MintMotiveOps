@@ -18,9 +18,36 @@ ANALYTICS_WIDGETS = [
     ("revenue_chart", "Revenue by Month"),
     ("top_kits", "Top Kits by Revenue"),
     ("build_stats", "Builds by Status"),
+    ("build_bottleneck", "Build Bottleneck Report"),
     ("currency_converter", "Currency Converter"),
     ("fx_chart", "Exchange Rate Chart"),
+    ("cash_flow", "Cash Flow Forecast"),
 ]
+
+_CASH_FLOW_BUCKETS = [
+    ("Overdue", None, -1),
+    ("This Week", 0, 7),
+    ("2–4 Weeks", 8, 28),
+    ("1–3 Months", 29, 90),
+    ("3+ Months / No Date", 91, None),
+]
+
+
+def _bucket_label(days_out):
+    """days_out is None (no date set) or an int day offset from today."""
+    if days_out is None:
+        return _CASH_FLOW_BUCKETS[-1][0]
+    for label, lo, hi in _CASH_FLOW_BUCKETS:
+        if lo is None:
+            if days_out < 0:
+                return label
+            continue
+        if hi is None:
+            if days_out >= lo:
+                return label
+        elif lo <= days_out <= hi:
+            return label
+    return _CASH_FLOW_BUCKETS[-1][0]
 
 
 def _hidden_widgets(db):
@@ -175,6 +202,30 @@ def index():
                FROM builds WHERE start_date IS NOT NULL AND completed_date IS NOT NULL"""
         ).fetchone()["d"]
 
+    build_bottleneck = []
+    if "build_bottleneck" not in hidden:
+        rows = db.execute(
+            """SELECT rs.step_name, k.kit_name, rs.estimated_minutes AS estimated_minutes,
+                      COUNT(bsl.id) AS run_count, AVG(bsl.actual_minutes) AS avg_actual_minutes
+               FROM build_step_logs bsl
+               JOIN routing_steps rs ON rs.id = bsl.routing_step_id
+               JOIN kits k ON k.id = rs.kit_id
+               WHERE bsl.actual_minutes IS NOT NULL
+               GROUP BY rs.id, rs.step_name, k.kit_name, rs.estimated_minutes
+               HAVING COUNT(bsl.id) >= 2
+               ORDER BY AVG(bsl.actual_minutes) - rs.estimated_minutes DESC
+               LIMIT 8"""
+        ).fetchall()
+        for r in rows:
+            est = r["estimated_minutes"] or 0
+            actual = r["avg_actual_minutes"] or 0
+            build_bottleneck.append({
+                "step_name": r["step_name"], "kit_name": r["kit_name"], "run_count": r["run_count"],
+                "estimated_minutes": round(est, 1), "avg_actual_minutes": round(actual, 1),
+                "overrun_minutes": round(actual - est, 1),
+                "overrun_pct": round((actual / est - 1) * 100, 0) if est > 0 else None,
+            })
+
     outstanding_by_status = []
     if "outstanding_invoices" not in hidden:
         outstanding_by_status = db.execute(
@@ -182,6 +233,35 @@ def index():
                FROM invoices i JOIN invoice_lines l ON l.invoice_id = i.id
                WHERE i.status IN ('Sent','Overdue') GROUP BY i.status"""
         ).fetchall()
+
+    cash_flow = None
+    if "cash_flow" not in hidden:
+        today = datetime.utcnow().date()
+        buckets = {label: {"in": 0.0, "out": 0.0} for label, _, _ in _CASH_FLOW_BUCKETS}
+
+        invoice_rows = db.execute(
+            "SELECT i.due_date, COALESCE(SUM(l.quantity*l.unit_price),0) v FROM invoices i "
+            "JOIN invoice_lines l ON l.invoice_id = i.id WHERE i.status IN ('Sent','Overdue') "
+            "GROUP BY i.id, i.due_date"
+        ).fetchall()
+        for r in invoice_rows:
+            days_out = (datetime.strptime(r["due_date"][:10], "%Y-%m-%d").date() - today).days if r["due_date"] else None
+            buckets[_bucket_label(days_out)]["in"] += r["v"]
+
+        po_rows = db.execute(
+            "SELECT po.expected_delivery_date, COALESCE(SUM((l.quantity_ordered - l.quantity_received) * l.unit_cost),0) v "
+            "FROM purchase_orders po JOIN purchase_order_lines l ON l.purchase_order_id = po.id "
+            "WHERE po.status NOT IN ('Received','Cancelled') GROUP BY po.id, po.expected_delivery_date"
+        ).fetchall()
+        for r in po_rows:
+            days_out = (datetime.strptime(r["expected_delivery_date"][:10], "%Y-%m-%d").date() - today).days if r["expected_delivery_date"] else None
+            buckets[_bucket_label(days_out)]["out"] += r["v"]
+
+        cash_flow = [
+            {"label": label, "in": round(buckets[label]["in"], 2), "out": round(buckets[label]["out"], 2),
+             "net": round(buckets[label]["in"] - buckets[label]["out"], 2)}
+            for label, _, _ in _CASH_FLOW_BUCKETS
+        ]
 
     converter = None
     if "currency_converter" not in hidden:
@@ -227,10 +307,10 @@ def index():
         "analytics/index.html",
         revenue_by_month=revenue_by_month, max_revenue=max_revenue,
         top_kits=top_kits, max_kit_revenue=max_kit_revenue,
-        inventory_value=inventory_value, build_stats=build_stats,
+        inventory_value=inventory_value, build_stats=build_stats, build_bottleneck=build_bottleneck,
         avg_cycle_days=round(avg_cycle_days, 1) if avg_cycle_days else None,
         outstanding_by_status=outstanding_by_status,
-        converter=converter, fx_chart=fx_chart,
+        converter=converter, fx_chart=fx_chart, cash_flow=cash_flow,
         all_widgets=ANALYTICS_WIDGETS, hidden_widgets=hidden,
     )
 
