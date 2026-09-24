@@ -1,5 +1,6 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from ..db import get_db, generate_number, document_totals
+from .. import email_client
 
 bp = Blueprint("quotes", __name__, url_prefix="/quotes")
 
@@ -69,15 +70,32 @@ def detail(quote_id):
 
 @bp.route("/<int:quote_id>/email", methods=["POST"])
 def email_to_client(quote_id):
-    # Sandbox has no outbound SMTP/email-API access; this records the reviewed draft.
-    # TODO: send here — call your SMTP/email API once deployed. See DEPLOYMENT.md >
-    # "Setting up outbound email".
     db = get_db()
+    quote = db.execute(
+        "SELECT q.quote_number, c.email AS client_email FROM quotes q "
+        "JOIN clients c ON c.id=q.client_id WHERE q.id=?", (quote_id,),
+    ).fetchone()
+    subject = request.form.get("subject", "")
+    body = request.form.get("body", "")
+    sent = False
+    if quote and quote["client_email"]:
+        try:
+            sent = email_client.send_email(quote["client_email"], subject, body)
+        except Exception:
+            current_app.logger.warning(
+                f"Failed to email quote {quote['quote_number']} to {quote['client_email']}",
+                exc_info=True,
+            )
     db.execute("UPDATE quotes SET status='Sent' WHERE id=? AND status='Draft'", (quote_id,))
     db.execute("UPDATE quotes SET notes = COALESCE(notes,'') || '\n[Emailed to client: ' || ? || ']' WHERE id=?",
-               (request.form.get("subject", ""), quote_id))
+               (subject, quote_id))
     db.commit()
-    flash("Email marked as sent (wire up real SMTP/email API on deployment).", "success")
+    if sent:
+        flash(f"Email sent to {quote['client_email']}.", "success")
+    elif not (quote and quote["client_email"]):
+        flash("Marked as sent, but this client has no email address on file — add one from Clients.", "error")
+    else:
+        flash("Marked as sent, but the send failed — check SMTP settings in Administration > Integrations.", "error")
     return redirect(url_for("quotes.detail", quote_id=quote_id))
 
 

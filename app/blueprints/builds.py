@@ -1,6 +1,7 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from ..db import get_db, apply_build_status_change, now_str, build_labor_cost, build_true_cogs
 from ..utils import save_upload
+from .. import email_client
 
 bp = Blueprint("builds", __name__, url_prefix="/builds")
 
@@ -192,14 +193,29 @@ def complete_step(build_id, step_id):
 
 @bp.route("/<int:build_id>/send-completion-email", methods=["POST"])
 def send_completion_email(build_id):
-    # In this sandbox there's no outbound email/SMTP access, so this records
-    # the reviewed draft as "sent" for demonstration.
-    # TODO: send here — call your SMTP/email API with request.form["subject"]/
-    # ["body"] and the client's email once deployed. See DEPLOYMENT.md >
-    # "Setting up outbound email".
     db = get_db()
+    build = db.execute(
+        "SELECT b.build_number, c.email AS client_email FROM builds b "
+        "LEFT JOIN clients c ON c.id=b.client_id WHERE b.id=?", (build_id,),
+    ).fetchone()
+    subject = request.form.get("subject", "")
+    body = request.form.get("body", "")
+    sent = False
+    if build and build["client_email"]:
+        try:
+            sent = email_client.send_email(build["client_email"], subject, body)
+        except Exception:
+            current_app.logger.warning(
+                f"Failed to email build completion for {build['build_number']} to {build['client_email']}",
+                exc_info=True,
+            )
     db.execute("UPDATE builds SET notes = COALESCE(notes,'') || '\n[Completion email sent: ' || ? || ']' WHERE id=?",
-               (request.form.get("subject", ""), build_id))
+               (subject, build_id))
     db.commit()
-    flash("Completion email marked as sent (wire up real SMTP/email API on deployment).", "success")
+    if sent:
+        flash(f"Completion email sent to {build['client_email']}.", "success")
+    elif not (build and build["client_email"]):
+        flash("Marked as sent, but this build's client has no email address on file — add one from Clients.", "error")
+    else:
+        flash("Marked as sent, but the send failed — check SMTP settings in Administration > Integrations.", "error")
     return redirect(url_for("builds.detail", build_id=build_id))
