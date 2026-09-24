@@ -1,6 +1,7 @@
 import secrets
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from ..db import get_db, generate_number, document_totals
+from .. import email_client
 
 bp = Blueprint("invoices", __name__, url_prefix="/invoices")
 
@@ -135,16 +136,30 @@ def generate_pay_link(invoice_id):
 
 @bp.route("/<int:invoice_id>/email", methods=["POST"])
 def email_to_client(invoice_id):
-    # Sandbox has no outbound SMTP/email-API access; this records the
-    # reviewed draft.
-    # TODO: send here — call your SMTP/email API (Postmark/Resend/SendGrid/etc.)
-    # with request.form["subject"] / request.form["body"] and the client's email
-    # once deployed. See DEPLOYMENT.md > "Setting up outbound email".
     db = get_db()
+    invoice = db.execute(
+        "SELECT i.invoice_number, c.email AS client_email FROM invoices i "
+        "JOIN clients c ON c.id=i.client_id WHERE i.id=?", (invoice_id,),
+    ).fetchone()
+    subject = request.form.get("subject", "")
+    body = request.form.get("body", "")
+    sent = False
+    if invoice and invoice["client_email"]:
+        try:
+            sent = email_client.send_email(invoice["client_email"], subject, body)
+        except Exception:
+            current_app.logger.warning(
+                f"Failed to email invoice {invoice['invoice_number']} to {invoice['client_email']}",
+                exc_info=True,
+            )
     db.execute("UPDATE invoices SET status='Sent' WHERE id=? AND status='Draft'", (invoice_id,))
     db.execute("UPDATE invoices SET notes = COALESCE(notes,'') || '\n[Emailed to client: ' || ? || ']' WHERE id=?",
-               (request.form.get("subject", ""), invoice_id))
+               (subject, invoice_id))
     db.commit()
-    # request.form["body"] holds the reviewed draft body, ready for the real send call above.
-    flash("Email marked as sent (wire up real SMTP/email API on deployment).", "success")
+    if sent:
+        flash(f"Email sent to {invoice['client_email']}.", "success")
+    elif not (invoice and invoice["client_email"]):
+        flash("Marked as sent, but this client has no email address on file — add one from Clients.", "error")
+    else:
+        flash("Marked as sent, but the send failed — check SMTP settings in Administration > Integrations.", "error")
     return redirect(url_for("invoices.detail", invoice_id=invoice_id))
