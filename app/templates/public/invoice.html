@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% import "_icons.html" as icons %}
-{% block title %}{{ doc.invoice_number }} — {{ company.company_name }}{% endblock %}
+{% block title %}{{ doc.invoice_number }}{% if company.company_name %} — {{ company.company_name }}{% endif %}{% endblock %}
 {% block bare_content %}
 <style>
   body { background: {{ company.light_page_bg }}; padding: 40px 16px; }

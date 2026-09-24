@@ -18,6 +18,9 @@
   <h2>Company Profile &amp; Tax</h2>
   <form method="post" enctype="multipart/form-data">
     <div class="form-row"><div><label>Company Name</label><input name="company_name" value="{{ company.company_name or '' }}"></div><div><label>ABN</label><input name="abn" value="{{ company.abn or '' }}"></div></div>
+    <div class="checkbox-row"><input type="checkbox" name="show_company_name" id="show_company_name" {{ 'checked' if company.show_company_name }}><label for="show_company_name" style="margin:0;">Show company name text next to the logo (sidebar &amp; quotes/invoices) — leaving this blank or unchecked shows the logo alone</label></div>
+    <label>Tagline</label><input name="tagline" value="{{ company.tagline or '' }}" placeholder="e.g. Precision-built, shipped worldwide">
+    <div class="checkbox-row"><input type="checkbox" name="show_tagline" id="show_tagline" {{ 'checked' if company.show_tagline }}><label for="show_tagline" style="margin:0;">Show tagline underneath the logo</label></div>
     <label>Address</label><textarea name="address">{{ company.address or '' }}</textarea>
     <label>Logo</label>
     {% if company.logo_path %}
