@@ -15,6 +15,19 @@
   <a class="active" href="{{ url_for('admin.backup') }}">Backup &amp; Move</a>
 </div>
 
+{% if storage %}
+<div class="card" style="border-left:4px solid {{ '#2e9e6a' if storage.ok else '#d9534f' }};">
+  <h2>{{ 'Everything is saved permanently' if storage.ok else 'Some data is not saved permanently' }}</h2>
+  <ul style="margin:0; padding-left:20px; line-height:1.7;">
+    <li>Records: {{ storage.database }} {{ '✓' if storage.database_ok else '✗' }}</li>
+    <li>Uploaded images and documents: <code>{{ storage.uploads }}</code>{% if storage.volume %} (volume at <code>{{ storage.volume }}</code>){% endif %} {{ '✓' if storage.uploads_ok else '✗' }}</li>
+    <li>SECRET_KEY: {{ storage.secret }} {{ '✓' if storage.secret_ok else '✗' }}</li>
+  </ul>
+  {% for p in storage.problems %}<p class="subtitle" style="margin-top:10px;"><strong>Fix:</strong> {{ p }}</p>{% endfor %}
+  {% if storage.host != 'railway' %}<p class="subtitle" style="margin-top:10px;">Not on Railway: keep the database and <code>app/static/uploads</code> on disks that are not thrown away when the app is updated.</p>{% endif %}
+</div>
+{% endif %}
+
 <div class="card">
   <h2>Moving to a new server</h2>
   <p class="subtitle">

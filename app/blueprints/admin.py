@@ -633,7 +633,7 @@ def backup():
         except Exception:
             counts[label] = None
     files = sum(len([f for f in names if f != ".gitkeep"]) for _r, _d, names in os.walk(_uploads_dir()))
-    return render_template("admin/backup.html", counts=counts, files=files, backend=current_app.config.get("DB_BACKEND"))
+    return render_template("admin/backup.html", counts=counts, files=files, backend=current_app.config.get("DB_BACKEND"), storage=current_app.config.get("STORAGE_STATUS"))
 
 
 @bp.route("/backup/download", methods=["POST"])

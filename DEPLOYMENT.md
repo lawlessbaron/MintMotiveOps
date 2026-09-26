@@ -33,6 +33,8 @@ The repo deploys to [Railway](https://railway.com) as is: `railway.json` builds 
    python3 seed.py you@yourdomain.com "Your Name"
    ```
    It prints a temporary password once. Change it straight away in Administration > Security.
+**Every piece of data persists** as long as: records are in the Postgres service (`DATABASE_URL`), uploads are on the volume at `/app/app/static/uploads`, and `SECRET_KEY` is set. Ops checks all three when it starts on Railway and **refuses to start** if any is missing, logging exactly what to fix; the failed health check means Railway keeps the previous deployment running, so nothing is lost. **Admin → Backup & Move** shows the same check with a tick or a cross for each. (`ALLOW_EPHEMERAL_STORAGE=1` skips the refusal, for a throwaway preview only.)
+
 6. **Custom domain**: service → Settings → Networking → add your Ops domain (for example `ops.mintmotive.com.au`) and create the CNAME record Railway shows you at your DNS host. HTTPS is automatic.
 7. **Stripe**: point the webhook at `https://<your Ops domain>/pay/webhook/stripe`.
 8. **Local hardware agent** (`local_agent/`): change its server URL in `config.json` to the new domain.

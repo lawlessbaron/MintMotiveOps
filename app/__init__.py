@@ -54,6 +54,11 @@ def create_app():
         SESSION_COOKIE_SECURE=os.environ.get("FLASK_DEBUG", "0") != "1",
     )
 
+    # Refuse to start on Railway if records or uploads would be wiped at the
+    # next deploy (see app/storage_check.py); logs the status everywhere else.
+    from .storage_check import check_on_boot
+    check_on_boot(app)
+
     db_module.init_db(app)
     app.teardown_appcontext(db_module.close_db)
 
