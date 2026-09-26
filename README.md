@@ -29,6 +29,8 @@ Then open http://127.0.0.1:5000 and log in with the email/password `seed.py` pri
 
 ## Deploying
 
+**Railway**: see "Railway (recommended)" at the top of `DEPLOYMENT.md` (its own project, Railway Postgres, a volume for uploads).
+
 See `DEPLOYMENT.md` — covers hosting (Render/Fly/PythonAnywhere, with persistent-disk notes since this uses SQLite), wiring up real Stripe keys, outbound email, and the Shopify integration.
 
 Running your own Windows server (Azure VM, rented VPS, etc.) instead? See

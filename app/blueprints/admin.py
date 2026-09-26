@@ -608,3 +608,152 @@ def save_email_template(tpl_id):
     db.commit()
     flash("Email template saved.", "success")
     return redirect(url_for("admin.company") + "#email-templates")
+
+
+# ---------------- Backup & Move ----------------
+# Download everything (every table + every uploaded file) as one zip, and
+# restore such a zip on another install. This is how an install moves between
+# servers (e.g. to Railway) with no command line on either end.
+
+def _uploads_dir():
+    from flask import current_app
+    return os.path.join(current_app.static_folder, "uploads")
+
+
+@bp.route("/backup")
+def backup():
+    from flask import current_app
+    db = get_db()
+    counts = {}
+    for label, table in (("Parts", "parts"), ("Sales orders", "sales_orders"), ("Purchase orders", "purchase_orders"),
+                         ("Quotes", "quotes"), ("Invoices", "invoices"), ("Clients", "clients"), ("Suppliers", "suppliers"),
+                         ("Kits", "kits"), ("Builds", "builds"), ("Users", "users")):
+        try:
+            counts[label] = db.execute(f"SELECT COUNT(*) c FROM {table}").fetchone()["c"]
+        except Exception:
+            counts[label] = None
+    files = sum(len([f for f in names if f != ".gitkeep"]) for _r, _d, names in os.walk(_uploads_dir()))
+    return render_template("admin/backup.html", counts=counts, files=files, backend=current_app.config.get("DB_BACKEND"), storage=current_app.config.get("STORAGE_STATUS"))
+
+
+@bp.route("/backup/download", methods=["POST"])
+def backup_download():
+    from flask import current_app, send_file, session
+    from ..backup import backup_to_tempfile, backup_filename
+    from ..db import audit_log_write
+    db = get_db()
+    tmp, manifest = backup_to_tempfile(db, current_app.config.get("DB_BACKEND"), _uploads_dir(), current_app.config["SECRET_KEY"])
+    audit_log_write(db, "backup", None, "INSERT", session.get("user_name"),
+                    f"Full backup downloaded: {sum(manifest['tables'].values())} rows, {manifest['files']} files")
+    db.commit()
+    response = send_file(tmp, mimetype="application/zip", as_attachment=True, download_name=backup_filename())
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@bp.route("/backup/restore", methods=["POST"])
+def backup_restore():
+    from flask import current_app, session
+    from ..backup import BackupError, restore_backup, key_check
+    from ..db import audit_log_write
+    if request.form.get("confirm", "").strip().upper() != "RESTORE":
+        flash("Type RESTORE to confirm. Nothing was changed.", "error")
+        return redirect(url_for("admin.backup"))
+    upload = request.files.get("backup")
+    if not upload or not upload.filename:
+        flash("Choose the backup .zip you downloaded from the other server.", "error")
+        return redirect(url_for("admin.backup"))
+    db = get_db()
+    who = session.get("user_name")
+    try:
+        result = restore_backup(db, current_app.config.get("DB_BACKEND"), upload.stream, _uploads_dir())
+    except BackupError as e:
+        flash(str(e), "error")
+        return redirect(url_for("admin.backup"))
+    audit_log_write(db, "backup", None, "UPDATE", who,
+                    f"Restored backup from {result['manifest'].get('created_at')}: "
+                    f"{sum(result['tables'].values())} rows, {result['files']} files")
+    db.commit()
+    # User ids now belong to the restored data, so everyone signs in again.
+    session.clear()
+    notes = []
+    if result["manifest"].get("key_check") != key_check(current_app.config["SECRET_KEY"]):
+        notes.append("This server's SECRET_KEY differs from the old one, so re-enter the Stripe and SMTP details in Administration > Integrations (or set SECRET_KEY to the old value and redeploy).")
+    flash(f"Restored {sum(result['tables'].values())} records and {result['files']} files from the backup made "
+          f"{result['manifest'].get('created_at')}. Sign in with an account from the old server. " + " ".join(notes), "success")
+    return redirect(url_for("auth.login"))
+
+
+# ---------------- Domain ----------------
+# Add Ops' domain to this Railway service, see the DNS records to create,
+# check it works, and send visitors on other addresses to it.
+
+@bp.route("/domain")
+def domain():
+    from .. import domain as dom
+    db = get_db()
+    row = db.execute("SELECT primary_domain, domain_redirect FROM company_settings ORDER BY id LIMIT 1").fetchone()
+    primary = (row["primary_domain"] if row else None) or ""
+    railway = dom.Railway()
+    listing, error = None, None
+    if railway.ready:
+        try:
+            listing = railway.list()
+        except dom.RailwayError as e:
+            error = str(e)
+    check = None
+    if request.args.get("check"):
+        d = dom.clean_domain(request.args.get("check"))
+        if d:
+            ok, message = dom.probe(d)
+            check = {"domain": d, "ok": ok, "message": message, "ips": dom.resolves_to(d)}
+        else:
+            flash("Enter a domain like ops.mintmotive.com.au", "error")
+    return render_template("admin/domain.html", primary=primary, redirect_on=bool(row and row["domain_redirect"]),
+                           current_host=request.host, railway=railway, listing=listing, error=error, check=check,
+                           zone=dom.zone_of(primary or request.host.split(":")[0]))
+
+
+@bp.route("/domain/save", methods=["POST"])
+def domain_save():
+    from flask import session
+    from .. import domain as dom
+    from ..db import audit_log_write
+    d = dom.clean_domain(request.form.get("domain"))
+    if not d:
+        flash("Enter a domain like ops.mintmotive.com.au", "error")
+        return redirect(url_for("admin.domain"))
+    redirect_on = bool(request.form.get("redirect"))
+    if redirect_on:
+        ok, message = dom.probe(d)
+        if not ok:
+            flash(f"Saved the domain, but not switching visitors over yet: {message}", "error")
+            redirect_on = False
+    db = get_db()
+    db.execute("UPDATE company_settings SET primary_domain=?, domain_redirect=?", (d, 1 if redirect_on else 0))
+    audit_log_write(db, "company_settings", None, "UPDATE", session.get("user_name"), f"Domain set to {d}" + (" (visitors redirected)" if redirect_on else ""))
+    db.commit()
+    dom.settings.forget()
+    flash(f"Saved {d}." + (" Visitors on other addresses now go there (all workers within 30 seconds)." if redirect_on else ""), "success")
+    return redirect(url_for("admin.domain"))
+
+
+@bp.route("/domain/railway", methods=["POST"])
+def domain_railway():
+    from flask import session
+    from .. import domain as dom
+    from ..db import audit_log_write
+    d = dom.clean_domain(request.form.get("domain"))
+    if not d:
+        flash("Enter a domain like ops.mintmotive.com.au", "error")
+        return redirect(url_for("admin.domain"))
+    try:
+        added = dom.Railway().add(d)
+    except dom.RailwayError as e:
+        flash(str(e), "error")
+        return redirect(url_for("admin.domain"))
+    db = get_db()
+    audit_log_write(db, "company_settings", None, "UPDATE", session.get("user_name"), f"Added {d} to Railway")
+    db.commit()
+    flash(f"Added {added['domain']} to Railway. Create the DNS records below at your DNS host.", "success")
+    return redirect(url_for("admin.domain"))

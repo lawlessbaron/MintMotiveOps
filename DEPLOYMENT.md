@@ -8,6 +8,52 @@ This app runs against either SQLite (a single file, zero setup) or real PostgreS
 - **Database**: PostgreSQL, schema auto-applied from `schema_postgres.sql` the first time the app connects to an empty database. Runs as a sibling Docker container on the same VPS as the app — see below.
 - **Uploads**: product/kit/build images and documents saved under `app/static/uploads/` — persisted via a Docker volume in the single-VPS path (or a persistent disk on PaaS hosts).
 
+## Railway (recommended)
+
+The repo deploys to [Railway](https://railway.com) as is: `railway.json` builds the `Dockerfile`, waits for `/healthz` to answer before switching traffic, and restarts the app if it crashes.
+
+**Keep MintMotive Ops in its own Railway project.** It is a separate business system from anything else Mint Motive runs (VERTEX included): its own project, its own Postgres, its own volume, its own variables. Nothing is shared between projects.
+
+1. **New project → Deploy from GitHub repo** → `lawlessbaron/MintMotiveOps`.
+2. In the same project, **+ New → Database → PostgreSQL**. The schema is created automatically the first time the app starts against the empty database.
+3. On the app service, **Variables**:
+
+   | Variable | Value |
+   | --- | --- |
+   | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (Railway fills it in; it uses the private network, which is never exposed to the internet) |
+   | `SECRET_KEY` | a long random string: `python3 -c "import secrets; print(secrets.token_hex(32))"`. Keep it safe: it also encrypts the Stripe and SMTP credentials saved in Administration, so changing it means re-entering those. |
+   | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | optional, see Stripe below |
+   | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | optional, for emailed password resets and documents |
+   | `WEB_CONCURRENCY` | optional, gunicorn workers (default 4; 2 is plenty on a small plan) |
+
+   `PORT` is set by Railway and the app listens on it.
+4. **Add a volume** to the app service mounted at **`/app/app/static/uploads`**. Part, kit and build images and uploaded documents live there; without a volume they are lost on every deploy.
+5. Deploy. Railway builds straight from GitHub, so nothing needs `git` on Railway, and the service's console doesn't have it: the code, `seed.py` and `scripts/` are already inside the image at `/app`. Then, **once**, open a shell on the running service (`railway ssh`, or the service's shell in the dashboard) and create the reference data and your Owner login:
+   ```
+   python3 seed.py you@yourdomain.com "Your Name"
+   ```
+   It prints a temporary password once. Change it straight away in Administration > Security.
+**Every piece of data persists** as long as: records are in the Postgres service (`DATABASE_URL`), uploads are on the volume at `/app/app/static/uploads`, and `SECRET_KEY` is set. Ops checks all three when it starts on Railway and **refuses to start** if any is missing, logging exactly what to fix; the failed health check means Railway keeps the previous deployment running, so nothing is lost. **Admin → Backup & Move** shows the same check with a tick or a cross for each. (`ALLOW_EPHEMERAL_STORAGE=1` skips the refusal, for a throwaway preview only.)
+
+6. **Custom domain**, from Ops itself: add a Railway token to the service as `RAILWAY_PROJECT_TOKEN` (project → Settings → Tokens; Railway already gives every service its project, environment and service IDs). Then **Administration → Domain**: type `ops.mintmotive.com.au`, press **Add to Railway**, and create the DNS records it lists at whoever manages `mintmotive.com.au` (each is marked done once it's live). **Check it works** confirms the domain reaches this app over HTTPS; after that you can tick *send visitors on other addresses to this domain*. Without a token, add the domain in Railway (service → Settings → Networking) and use the page to check it. HTTPS is automatic. Update the Stripe webhook URL to the new domain.
+7. **Stripe**: point the webhook at `https://<your Ops domain>/pay/webhook/stripe`.
+8. **Local hardware agent** (`local_agent/`): change its server URL in `config.json` to the new domain.
+
+**Moving your existing data (orders, inventory, everything)** — the easy way, in the browser:
+
+1. Update the **old** server to this version too (so it has the new page), then sign in there as an Owner and go to **Administration > Backup & Move > Download full backup**. You get one .zip with every record in every table (parts and stock, sales and purchase orders, quotes, invoices, clients, suppliers, kits, builds, assets, documents, settings, users) and every uploaded image and document.
+2. On the **Railway** copy, sign in as an Owner (the `seed.py` login is fine for this), go to the same page, choose the file, type RESTORE and press **Restore and replace everything**. It replaces the new server's data with yours, all or nothing, and signs everyone out.
+3. Sign in with your usual account from the old server and check everything is there. Give Railway the same `SECRET_KEY` as the old server and the Stripe/SMTP details saved in Integrations carry over too; otherwise re-enter them.
+
+Works between any two installs (SQLite to Postgres and back, Windows to Railway). For very large uploads folders, the same thing runs from a shell: `python3 scripts/backup.py export backup.zip` on the old server and `python3 scripts/backup.py restore backup.zip --yes` on the new one. Uploads bigger than 2 GB need `BACKUP_MAX_MB` raised.
+
+The command-line alternatives still work: `pg_dump`/`pg_restore` against Railway's public connection string (from your own machine; the Railway console has neither `git` nor `pg_dump`), or `migrate_sqlite_to_postgres.py` from SQLite.
+
+Notes:
+- Connections over Railway's private network (`*.railway.internal`) use TLS when offered but don't require it (the private network is already encrypted); the public connection string still requires TLS.
+- `--preload` in the start command builds the app once before the workers start, so first-boot schema setup and the one-off stock import run once.
+- Back up with Railway's database backups, or a scheduled `pg_dump` against the public connection string.
+
 ## Single-VPS deploy: app + Postgres, same server, zero network hop
 
 If you want a real Postgres database instead of the SQLite file, but don't
@@ -89,7 +135,7 @@ Render's free/starter web services support a persistent disk, which is exactly w
 
 - **Fly.io** — similar shape: attach a [Fly Volume](https://fly.io/docs/reference/volumes/) at the `instance/` path, set the same env vars as secrets (`fly secrets set ...`), deploy with a simple Dockerfile (`pip install -r requirements.txt`, `CMD gunicorn wsgi:app`).
 - **PythonAnywhere** — good if you'd rather not touch Docker/CLI deploys. It gives you a real persistent filesystem by default (no extra disk config needed), and has a first-class "WSGI configuration file" step where you point it at `wsgi.py`.
-- **Railway** — works, but double-check the volume is actually mounted at your `instance/` path before relying on it; Railway's default filesystem is ephemeral like Render's.
+- **Railway** — see "Railway (recommended)" above; it uses Postgres rather than SQLite.
 
 Avoid host types that don't offer any persistent volume at all (e.g. typical serverless/Lambda-style deploys) — every deploy or cold start would reset your database to empty.
 

@@ -54,6 +54,11 @@ def create_app():
         SESSION_COOKIE_SECURE=os.environ.get("FLASK_DEBUG", "0") != "1",
     )
 
+    # Refuse to start on Railway if records or uploads would be wiped at the
+    # next deploy (see app/storage_check.py); logs the status everywhere else.
+    from .storage_check import check_on_boot
+    check_on_boot(app)
+
     db_module.init_db(app)
     app.teardown_appcontext(db_module.close_db)
 
@@ -105,13 +110,44 @@ def create_app():
     app.register_blueprint(financial.bp)
     app.register_blueprint(api.bp)
 
+    # ---- health check for the host (Railway, Docker): the app is up and the
+    # database answers. Open without a login, returns no business data. ----
+    @app.get("/healthz")
+    def healthz():
+        try:
+            db_module.get_db().execute("SELECT 1").fetchone()
+        except Exception:
+            app.logger.warning("Health check: database not reachable", exc_info=True)
+            return {"ok": False}, 503
+        return {"ok": True}
+
+    # ---- the app's own domain (Administration → Domain) ----
+    from . import domain as domain_module
+
+    @app.get("/.well-known/ops-instance")
+    def ops_instance():
+        # Lets Administration → Domain check a domain reaches this very app.
+        return domain_module.INSTANCE_ID, 200, {"Content-Type": "text/plain", "Cache-Control": "no-store"}
+
+    @app.before_request
+    def to_primary_domain():
+        # Once switched on (only after the domain is proven to work), send
+        # visitors on any other address, like *.up.railway.app, to it.
+        if request.endpoint in ("healthz", "ops_instance"):
+            return
+        primary, on = domain_module.settings.get(db_module.get_db())
+        host = (request.host or "").split(":")[0].lower()
+        if on and primary and host and host != primary and host not in ("localhost", "127.0.0.1"):
+            target = f"https://{primary}{request.full_path if request.query_string else request.path}"
+            return redirect(target, code=301 if request.method in ("GET", "HEAD") else 308)
+
     # ---- auth gate: everything except /login, /forgot-password,
     # /reset-password, /public/*, and /api/* (which authenticates the local
     # hardware agent with its own X-API-Key instead of a browser session —
     # see app/blueprints/api.py) requires a session user ----
     @app.before_request
     def require_login():
-        open_endpoints = {"auth.login", "auth.forgot_password", "auth.reset_password", "static"}
+        open_endpoints = {"auth.login", "auth.forgot_password", "auth.reset_password", "static", "healthz", "ops_instance"}
         if request.endpoint and (
             request.endpoint in open_endpoints
             or request.endpoint.startswith("public.")
@@ -157,6 +193,14 @@ def create_app():
     # local hardware agent authenticates with X-API-Key, not a browser
     # session/cookie) and the Stripe webhook (a server-to-server POST from
     # Stripe, verified separately via its own signature, not a browser). ----
+    # A full backup (every record plus every uploaded image) can be far
+    # bigger than the 25MB everyday limit, so the restore upload alone gets
+    # a larger one. Set before csrf_protect reads the form. Owner-only.
+    @app.before_request
+    def allow_large_backup_upload():
+        if request.endpoint == "admin.backup_restore" and session.get("user_role") == "Owner":
+            request.max_content_length = int(os.environ.get("BACKUP_MAX_MB", "2048")) * 1024 * 1024
+
     @app.before_request
     def csrf_protect():
         if request.method not in ("POST", "PUT", "PATCH", "DELETE"):

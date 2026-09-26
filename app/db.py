@@ -50,7 +50,10 @@ def _pg_connect_kwargs(database_url):
     parsed = urlparse(database_url)
     query = parse_qs(parsed.query)
     if "sslmode" not in query and parsed.hostname not in _LOCAL_PG_HOSTS:
-        kwargs["sslmode"] = "require"
+        # Railway's private network (*.railway.internal) is already an
+        # encrypted tunnel between services in one project, so use TLS when
+        # the database offers it but don't refuse to connect without it.
+        kwargs["sslmode"] = "prefer" if (parsed.hostname or "").endswith(".railway.internal") else "require"
     return kwargs
 
 
@@ -345,6 +348,8 @@ ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS smtp_user TEXT;
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS smtp_password_encrypted TEXT;
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS smtp_from TEXT;
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS tagline TEXT;
+ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS primary_domain TEXT;
+ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS domain_redirect INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS show_company_name INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS show_tagline INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS favicon_path TEXT;
@@ -400,6 +405,8 @@ def init_db(app):
     _ensure_column_sqlite(conn, "company_settings", "smtp_password_encrypted", "TEXT")
     _ensure_column_sqlite(conn, "company_settings", "smtp_from", "TEXT")
     _ensure_column_sqlite(conn, "company_settings", "tagline", "TEXT")
+    _ensure_column_sqlite(conn, "company_settings", "primary_domain", "TEXT")
+    _ensure_column_sqlite(conn, "company_settings", "domain_redirect", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column_sqlite(conn, "company_settings", "show_company_name", "INTEGER NOT NULL DEFAULT 1")
     _ensure_column_sqlite(conn, "company_settings", "show_tagline", "INTEGER NOT NULL DEFAULT 1")
     _ensure_column_sqlite(conn, "company_settings", "favicon_path", "TEXT")
