@@ -4,7 +4,10 @@
   <div class="brand">
     <div class="brand-row">
       <img src="{{ '/static/' + company.logo_path if company.logo_path else '/static/img/logo-mint-on-dark.svg' }}" alt="{{ company.company_name or 'MintMotive' }}" onerror="this.style.display='none'">
-      {% if company.company_name and company.show_company_name %}<span>{{ company.company_name }}</span>{% endif %}
+      <div class="brand-name-group">
+        {% if company.company_name and company.show_company_name %}<span>{{ company.company_name }}</span>{% endif %}
+        <span class="badge accent brand-badge">OPS</span>
+      </div>
     </div>
     {% if company.tagline and company.show_tagline %}<div class="brand-tagline">{{ company.tagline }}</div>{% endif %}
   </div>
