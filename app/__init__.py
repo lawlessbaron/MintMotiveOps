@@ -121,13 +121,33 @@ def create_app():
             return {"ok": False}, 503
         return {"ok": True}
 
+    # ---- the app's own domain (Administration → Domain) ----
+    from . import domain as domain_module
+
+    @app.get("/.well-known/ops-instance")
+    def ops_instance():
+        # Lets Administration → Domain check a domain reaches this very app.
+        return domain_module.INSTANCE_ID, 200, {"Content-Type": "text/plain", "Cache-Control": "no-store"}
+
+    @app.before_request
+    def to_primary_domain():
+        # Once switched on (only after the domain is proven to work), send
+        # visitors on any other address, like *.up.railway.app, to it.
+        if request.endpoint in ("healthz", "ops_instance"):
+            return
+        primary, on = domain_module.settings.get(db_module.get_db())
+        host = (request.host or "").split(":")[0].lower()
+        if on and primary and host and host != primary and host not in ("localhost", "127.0.0.1"):
+            target = f"https://{primary}{request.full_path if request.query_string else request.path}"
+            return redirect(target, code=301 if request.method in ("GET", "HEAD") else 308)
+
     # ---- auth gate: everything except /login, /forgot-password,
     # /reset-password, /public/*, and /api/* (which authenticates the local
     # hardware agent with its own X-API-Key instead of a browser session —
     # see app/blueprints/api.py) requires a session user ----
     @app.before_request
     def require_login():
-        open_endpoints = {"auth.login", "auth.forgot_password", "auth.reset_password", "static", "healthz"}
+        open_endpoints = {"auth.login", "auth.forgot_password", "auth.reset_password", "static", "healthz", "ops_instance"}
         if request.endpoint and (
             request.endpoint in open_endpoints
             or request.endpoint.startswith("public.")

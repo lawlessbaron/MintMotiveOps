@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Domain — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Administration</h1></div>
+<div class="tabs">
+  <a href="{{ url_for('admin.index') }}">Overview</a>
+  <a href="{{ url_for('admin.company') }}">Company</a>
+  <a href="{{ url_for('admin.duties_shipping') }}">Duties &amp; Shipping</a>
+  <a href="{{ url_for('admin.numbering') }}">Numbering</a>
+  <a href="{{ url_for('admin.integrations') }}">Integrations</a>
+  <a href="{{ url_for('admin.security') }}">Security</a>
+  <a href="{{ url_for('admin.appearance') }}">Appearance</a>
+  <a href="{{ url_for('admin.audit_log') }}">Audit Log</a>
+  <a href="{{ url_for('admin.local_agent') }}">Local Agent</a>
+  <a href="{{ url_for('admin.backup') }}">Backup &amp; Move</a>
+  <a class="active" href="{{ url_for('admin.domain') }}">Domain</a>
+</div>
+
+{% macro records_table(x) %}
+<table class="data-table">
+  <tr><th>Type</th><th>Name / host</th><th>Value</th><th>Status</th></tr>
+  {% for r in x.records %}
+  <tr>
+    <td><span class="badge">{{ r.type }}</span></td>
+    <td><code>{{ r.host }}</code></td>
+    <td><code style="word-break:break-all; user-select:all;">{{ r.value }}</code></td>
+    <td>{% if r.ok %}<span class="badge accent">done</span>{% elif r.current %}<span class="subtitle">now {{ r.current }}</span>{% else %}<span class="subtitle">waiting</span>{% endif %}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="4" class="subtitle">Railway hasn't returned records yet. Refresh in a minute.</td></tr>
+  {% endfor %}
+</table>
+{% if x.certificate %}<p class="subtitle">HTTPS certificate: {{ x.certificate }}</p>{% endif %}
+{% endmacro %}
+
+<div class="card" style="max-width:760px;">
+  <h2>Your domain</h2>
+  <p class="subtitle">You're using Ops at <strong>{{ current_host }}</strong>.{% if primary %} Saved domain: <strong>{{ primary }}</strong>{% if redirect_on %} (everyone is sent there){% endif %}.{% endif %}</p>
+  <form method="post" action="{{ url_for('admin.domain_save') }}">
+    <label>Domain<br><input name="domain" value="{{ primary }}" placeholder="ops.mintmotive.com.au" autocomplete="off" spellcheck="false" style="width:100%; max-width:420px;"></label>
+    <p><label><input type="checkbox" name="redirect" {{ 'checked' if redirect_on }}> Send visitors on any other address (like the <code>up.railway.app</code> one) to this domain. Only switches on once the domain is proven to reach this app.</label></p>
+    <button class="btn btn-accent" type="submit">Save</button>
+  </form>
+  <form method="get" action="{{ url_for('admin.domain') }}" style="margin-top:10px;">
+    <input type="hidden" name="check" value="{{ primary or '' }}" id="check-domain">
+    <button class="btn" type="submit" onclick="document.getElementById('check-domain').value=this.form.previousElementSibling.querySelector('[name=domain]').value;">Check it works</button>
+  </form>
+  {% if check %}
+  <p style="margin-top:10px; padding:10px 12px; border-left:4px solid {{ '#2e9e6a' if check.ok else '#d9534f' }}; background:rgba(0,0,0,.03);">
+    <strong>{{ 'Working.' if check.ok else 'Not yet.' }}</strong> {{ check.message }}
+    {% if check.ips %}<br><span class="subtitle">{{ check.domain }} resolves to {{ check.ips|join(', ') }}</span>{% endif %}
+  </p>
+  {% endif %}
+</div>
+
+<div class="card" style="max-width:760px;">
+  <h2>Railway</h2>
+  {% if not railway.on_railway %}
+    <p class="subtitle">This copy of Ops isn't running on Railway, so add the domain wherever it's hosted and point your DNS there.</p>
+  {% elif not railway.ready %}
+    <p><strong>Connect Railway to add the domain from here.</strong> In Railway open this project → <strong>Settings → Tokens</strong>, create a token for this environment, and add it on the Ops service as the variable <code>RAILWAY_PROJECT_TOKEN</code>. Ops redeploys, and this page can then add the domain to the service for you.</p>
+  {% else %}
+    {% if error %}<p style="color:#b3261e;">{{ error }}</p>{% endif %}
+    <p class="subtitle">Connected with a {{ 'project' if railway.token_kind == 'project' else 'account' }} token.{% if listing and listing.service_domains %} Railway address: <code>{{ listing.service_domains|join(', ') }}</code>{% endif %}</p>
+    {% if listing %}{% for x in listing.custom_domains %}<h3>{{ x.domain }}</h3>{{ records_table(x) }}{% else %}<p class="subtitle">No custom domain on this service yet.</p>{% endfor %}{% endif %}
+    <form method="post" action="{{ url_for('admin.domain_railway') }}">
+      <label>Domain to add<br><input name="domain" value="{{ primary }}" placeholder="ops.mintmotive.com.au" autocomplete="off" spellcheck="false" style="width:100%; max-width:420px;"></label>
+      <p><button class="btn btn-accent" type="submit">Add to Railway</button></p>
+    </form>
+  {% endif %}
+  <h3>Then, at your DNS host</h3>
+  <p class="subtitle">Railway can't create DNS records: they live wherever <strong>{{ zone }}</strong> is managed (your registrar, Cloudflare, cPanel…). Create the records Railway lists exactly as shown (on Cloudflare, set them to <em>DNS only</em>, the grey cloud, until the certificate is issued). It usually works within minutes; allow up to an hour. Then press <strong>Check it works</strong>.</p>
+</div>
+{% endblock %}

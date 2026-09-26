@@ -9,6 +9,8 @@ CREATE TABLE company_settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),           -- singleton row
     company_name TEXT DEFAULT 'Mint Motive Solutions',
     tagline TEXT,
+    primary_domain TEXT,                              -- Administration → Domain
+    domain_redirect INTEGER NOT NULL DEFAULT 0,
     show_company_name INTEGER NOT NULL DEFAULT 1,
     show_tagline INTEGER NOT NULL DEFAULT 1,
     favicon_path TEXT,

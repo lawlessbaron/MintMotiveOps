@@ -348,6 +348,8 @@ ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS smtp_user TEXT;
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS smtp_password_encrypted TEXT;
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS smtp_from TEXT;
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS tagline TEXT;
+ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS primary_domain TEXT;
+ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS domain_redirect INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS show_company_name INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS show_tagline INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS favicon_path TEXT;
@@ -403,6 +405,8 @@ def init_db(app):
     _ensure_column_sqlite(conn, "company_settings", "smtp_password_encrypted", "TEXT")
     _ensure_column_sqlite(conn, "company_settings", "smtp_from", "TEXT")
     _ensure_column_sqlite(conn, "company_settings", "tagline", "TEXT")
+    _ensure_column_sqlite(conn, "company_settings", "primary_domain", "TEXT")
+    _ensure_column_sqlite(conn, "company_settings", "domain_redirect", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column_sqlite(conn, "company_settings", "show_company_name", "INTEGER NOT NULL DEFAULT 1")
     _ensure_column_sqlite(conn, "company_settings", "show_tagline", "INTEGER NOT NULL DEFAULT 1")
     _ensure_column_sqlite(conn, "company_settings", "favicon_path", "TEXT")

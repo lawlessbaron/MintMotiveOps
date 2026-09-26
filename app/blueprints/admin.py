@@ -682,3 +682,78 @@ def backup_restore():
     flash(f"Restored {sum(result['tables'].values())} records and {result['files']} files from the backup made "
           f"{result['manifest'].get('created_at')}. Sign in with an account from the old server. " + " ".join(notes), "success")
     return redirect(url_for("auth.login"))
+
+
+# ---------------- Domain ----------------
+# Add Ops' domain to this Railway service, see the DNS records to create,
+# check it works, and send visitors on other addresses to it.
+
+@bp.route("/domain")
+def domain():
+    from .. import domain as dom
+    db = get_db()
+    row = db.execute("SELECT primary_domain, domain_redirect FROM company_settings ORDER BY id LIMIT 1").fetchone()
+    primary = (row["primary_domain"] if row else None) or ""
+    railway = dom.Railway()
+    listing, error = None, None
+    if railway.ready:
+        try:
+            listing = railway.list()
+        except dom.RailwayError as e:
+            error = str(e)
+    check = None
+    if request.args.get("check"):
+        d = dom.clean_domain(request.args.get("check"))
+        if d:
+            ok, message = dom.probe(d)
+            check = {"domain": d, "ok": ok, "message": message, "ips": dom.resolves_to(d)}
+        else:
+            flash("Enter a domain like ops.mintmotive.com.au", "error")
+    return render_template("admin/domain.html", primary=primary, redirect_on=bool(row and row["domain_redirect"]),
+                           current_host=request.host, railway=railway, listing=listing, error=error, check=check,
+                           zone=dom.zone_of(primary or request.host.split(":")[0]))
+
+
+@bp.route("/domain/save", methods=["POST"])
+def domain_save():
+    from flask import session
+    from .. import domain as dom
+    from ..db import audit_log_write
+    d = dom.clean_domain(request.form.get("domain"))
+    if not d:
+        flash("Enter a domain like ops.mintmotive.com.au", "error")
+        return redirect(url_for("admin.domain"))
+    redirect_on = bool(request.form.get("redirect"))
+    if redirect_on:
+        ok, message = dom.probe(d)
+        if not ok:
+            flash(f"Saved the domain, but not switching visitors over yet: {message}", "error")
+            redirect_on = False
+    db = get_db()
+    db.execute("UPDATE company_settings SET primary_domain=?, domain_redirect=?", (d, 1 if redirect_on else 0))
+    audit_log_write(db, "company_settings", None, "UPDATE", session.get("user_name"), f"Domain set to {d}" + (" (visitors redirected)" if redirect_on else ""))
+    db.commit()
+    dom.settings.forget()
+    flash(f"Saved {d}." + (" Visitors on other addresses now go there (all workers within 30 seconds)." if redirect_on else ""), "success")
+    return redirect(url_for("admin.domain"))
+
+
+@bp.route("/domain/railway", methods=["POST"])
+def domain_railway():
+    from flask import session
+    from .. import domain as dom
+    from ..db import audit_log_write
+    d = dom.clean_domain(request.form.get("domain"))
+    if not d:
+        flash("Enter a domain like ops.mintmotive.com.au", "error")
+        return redirect(url_for("admin.domain"))
+    try:
+        added = dom.Railway().add(d)
+    except dom.RailwayError as e:
+        flash(str(e), "error")
+        return redirect(url_for("admin.domain"))
+    db = get_db()
+    audit_log_write(db, "company_settings", None, "UPDATE", session.get("user_name"), f"Added {d} to Railway")
+    db.commit()
+    flash(f"Added {added['domain']} to Railway. Create the DNS records below at your DNS host.", "success")
+    return redirect(url_for("admin.domain"))
