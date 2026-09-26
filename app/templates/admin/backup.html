@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Backup &amp; Move — MintMotive Ops{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Administration</h1></div>
+<div class="tabs">
+  <a href="{{ url_for('admin.index') }}">Overview</a>
+  <a href="{{ url_for('admin.company') }}">Company</a>
+  <a href="{{ url_for('admin.duties_shipping') }}">Duties &amp; Shipping</a>
+  <a href="{{ url_for('admin.numbering') }}">Numbering</a>
+  <a href="{{ url_for('admin.integrations') }}">Integrations</a>
+  <a href="{{ url_for('admin.security') }}">Security</a>
+  <a href="{{ url_for('admin.appearance') }}">Appearance</a>
+  <a href="{{ url_for('admin.audit_log') }}">Audit Log</a>
+  <a href="{{ url_for('admin.local_agent') }}">Local Agent</a>
+  <a class="active" href="{{ url_for('admin.backup') }}">Backup &amp; Move</a>
+</div>
+
+<div class="card">
+  <h2>Moving to a new server</h2>
+  <p class="subtitle">
+    One file holds everything: every record in every table (parts and stock, sales and purchase orders,
+    quotes, invoices, clients, suppliers, kits, builds, assets, documents, settings, users) and every
+    uploaded image and document. Password-reset codes and the login-attempt log are left out.
+  </p>
+  <ol style="margin:0; padding-left:20px; line-height:1.7;">
+    <li>On the <strong>old</strong> server: <strong>Download full backup</strong> below.</li>
+    <li>On the <strong>new</strong> server: sign in as an Owner, come to this page, and <strong>Restore</strong> the file.</li>
+    <li>Sign in again with your usual account from the old server, check everything is there, then move your domain and Stripe webhook across.</li>
+  </ol>
+  <p class="subtitle" style="margin-top:12px;">Works between any two installs, SQLite or Postgres, Windows or Railway. For the Stripe and SMTP details saved in Integrations to carry over, give the new server the same <code>SECRET_KEY</code> as the old one.</p>
+</div>
+
+<div class="stat-grid">
+  {% for label, n in counts.items() %}
+  <div class="stat-tile"><div class="label">{{ label }}</div><div class="value">{{ n if n is not none else '—' }}</div></div>
+  {% endfor %}
+  <div class="stat-tile"><div class="label">Uploaded files</div><div class="value">{{ files }}</div></div>
+</div>
+
+<div class="card" style="max-width:640px;">
+  <h2>Download full backup</h2>
+  <p class="subtitle">A .zip of this server ({{ 'PostgreSQL' if backend == 'postgres' else 'SQLite' }}). It contains your business data and password hashes: keep it somewhere private.</p>
+  <form method="post" action="{{ url_for('admin.backup_download') }}">
+    <button class="btn btn-accent" type="submit">Download full backup</button>
+  </form>
+</div>
+
+<div class="card" style="max-width:640px;">
+  <h2>Restore from a backup</h2>
+  <p class="subtitle" style="color:#b3261e;">
+    This <strong>replaces all data on this server</strong> with the backup's. It is all or nothing: if anything
+    goes wrong, nothing changes. Everyone is signed out afterwards.
+  </p>
+  <form method="post" action="{{ url_for('admin.backup_restore') }}" enctype="multipart/form-data" onsubmit="var b=this.querySelector('button[type=submit]'); b.disabled=true; b.textContent='Restoring… keep this page open';">
+    <div style="margin-bottom:12px;"><label>Backup file (.zip)</label><input type="file" name="backup" accept=".zip,application/zip" required></div>
+    <div style="margin-bottom:12px;"><label>Type RESTORE to confirm</label><input name="confirm" autocomplete="off" placeholder="RESTORE" required></div>
+    <button class="btn btn-danger" type="submit">Restore and replace everything</button>
+  </form>
+</div>
+{% endblock %}

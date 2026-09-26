@@ -168,6 +168,14 @@ def create_app():
     # local hardware agent authenticates with X-API-Key, not a browser
     # session/cookie) and the Stripe webhook (a server-to-server POST from
     # Stripe, verified separately via its own signature, not a browser). ----
+    # A full backup (every record plus every uploaded image) can be far
+    # bigger than the 25MB everyday limit, so the restore upload alone gets
+    # a larger one. Set before csrf_protect reads the form. Owner-only.
+    @app.before_request
+    def allow_large_backup_upload():
+        if request.endpoint == "admin.backup_restore" and session.get("user_role") == "Owner":
+            request.max_content_length = int(os.environ.get("BACKUP_MAX_MB", "2048")) * 1024 * 1024
+
     @app.before_request
     def csrf_protect():
         if request.method not in ("POST", "PUT", "PATCH", "DELETE"):

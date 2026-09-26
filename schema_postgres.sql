@@ -504,6 +504,34 @@ CREATE TABLE sales_order_lines (
 );
 -- line_total = quantity * unit_price (computed)
 
+-- =========================================================================
+-- Users (simple single/multi-user auth). Created before purchase_orders,
+-- which references it (requested_by / approved_by); Postgres, unlike
+-- SQLite, checks that a referenced table exists when the table is created.
+-- =========================================================================
+
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'Owner' CHECK (role IN ('Owner','Workshop')),
+    -- Per-user override: a Workshop account with this set can view
+    -- Analytics & Reports (otherwise Owner-only) without being made a full
+    -- Owner. Owners always have access regardless of this flag.
+    can_view_analytics INTEGER NOT NULL DEFAULT 0,
+    -- NULL = no limit (every Owner, and any Workshop account an Owner
+    -- hasn't restricted). A number caps the $ value of a Purchase Order
+    -- this user can send to a supplier without Owner approval first —
+    -- see purchase_orders.approval_status below.
+    spending_limit REAL,
+    -- Comma-separated widget ids this user has hidden from Analytics —
+    -- NULL/empty means every widget shows (the default). Per-user, not
+    -- company-wide, since which numbers matter varies by role.
+    hidden_analytics_widgets TEXT,
+    created_at TEXT DEFAULT to_char(CURRENT_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')
+);
+
 CREATE TABLE purchase_orders (
     id SERIAL PRIMARY KEY,
     po_number TEXT UNIQUE,
@@ -765,31 +793,6 @@ CREATE TABLE quick_links (
     notes TEXT
 );
 
--- =========================================================================
--- Users (simple single/multi-user auth)
--- =========================================================================
-
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'Owner' CHECK (role IN ('Owner','Workshop')),
-    -- Per-user override: a Workshop account with this set can view
-    -- Analytics & Reports (otherwise Owner-only) without being made a full
-    -- Owner. Owners always have access regardless of this flag.
-    can_view_analytics INTEGER NOT NULL DEFAULT 0,
-    -- NULL = no limit (every Owner, and any Workshop account an Owner
-    -- hasn't restricted). A number caps the $ value of a Purchase Order
-    -- this user can send to a supplier without Owner approval first —
-    -- see purchase_orders.approval_status below.
-    spending_limit REAL,
-    -- Comma-separated widget ids this user has hidden from Analytics —
-    -- NULL/empty means every widget shows (the default). Per-user, not
-    -- company-wide, since which numbers matter varies by role.
-    hidden_analytics_widgets TEXT,
-    created_at TEXT DEFAULT to_char(CURRENT_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')
-);
 
 -- Self-service "forgot password" one-time codes (emailed — see
 -- app/email_client.py and app/blueprints/auth.py). Never stores the raw

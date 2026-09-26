@@ -37,7 +37,15 @@ The repo deploys to [Railway](https://railway.com) as is: `railway.json` builds 
 7. **Stripe**: point the webhook at `https://<your Ops domain>/pay/webhook/stripe`.
 8. **Local hardware agent** (`local_agent/`): change its server URL in `config.json` to the new domain.
 
-**Moving existing data** from the current server's Postgres: take a dump there (`pg_dump -Fc -U mintmotive_app mintmotive > ops.dump`), then restore it into Railway's Postgres using its public connection string from the database's Connect tab (`pg_restore --no-owner --clean --if-exists -d "<public DATABASE_URL>" ops.dump`) **before** the first start of the app, or into a fresh database. Copy the old `app/static/uploads/` folder into the volume: from your own machine, `tar czf - -C <old>/app/static uploads | railway ssh -- tar xzf - -C /app/app/static` (the Railway console has `tar` and `python3`, but not `git` or `pg_dump`, so run the dump and restore from your own machine or the old server). Coming from SQLite instead, use `migrate_sqlite_to_postgres.py` with `DATABASE_URL` set to the public connection string (see `POSTGRES_SETUP.md`).
+**Moving your existing data (orders, inventory, everything)** — the easy way, in the browser:
+
+1. Update the **old** server to this version too (so it has the new page), then sign in there as an Owner and go to **Administration > Backup & Move > Download full backup**. You get one .zip with every record in every table (parts and stock, sales and purchase orders, quotes, invoices, clients, suppliers, kits, builds, assets, documents, settings, users) and every uploaded image and document.
+2. On the **Railway** copy, sign in as an Owner (the `seed.py` login is fine for this), go to the same page, choose the file, type RESTORE and press **Restore and replace everything**. It replaces the new server's data with yours, all or nothing, and signs everyone out.
+3. Sign in with your usual account from the old server and check everything is there. Give Railway the same `SECRET_KEY` as the old server and the Stripe/SMTP details saved in Integrations carry over too; otherwise re-enter them.
+
+Works between any two installs (SQLite to Postgres and back, Windows to Railway). For very large uploads folders, the same thing runs from a shell: `python3 scripts/backup.py export backup.zip` on the old server and `python3 scripts/backup.py restore backup.zip --yes` on the new one. Uploads bigger than 2 GB need `BACKUP_MAX_MB` raised.
+
+The command-line alternatives still work: `pg_dump`/`pg_restore` against Railway's public connection string (from your own machine; the Railway console has neither `git` nor `pg_dump`), or `migrate_sqlite_to_postgres.py` from SQLite.
 
 Notes:
 - Connections over Railway's private network (`*.railway.internal`) use TLS when offered but don't require it (the private network is already encrypted); the public connection string still requires TLS.
