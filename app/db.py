@@ -50,7 +50,10 @@ def _pg_connect_kwargs(database_url):
     parsed = urlparse(database_url)
     query = parse_qs(parsed.query)
     if "sslmode" not in query and parsed.hostname not in _LOCAL_PG_HOSTS:
-        kwargs["sslmode"] = "require"
+        # Railway's private network (*.railway.internal) is already an
+        # encrypted tunnel between services in one project, so use TLS when
+        # the database offers it but don't refuse to connect without it.
+        kwargs["sslmode"] = "prefer" if (parsed.hostname or "").endswith(".railway.internal") else "require"
     return kwargs
 
 

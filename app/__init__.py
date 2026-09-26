@@ -105,13 +105,24 @@ def create_app():
     app.register_blueprint(financial.bp)
     app.register_blueprint(api.bp)
 
+    # ---- health check for the host (Railway, Docker): the app is up and the
+    # database answers. Open without a login, returns no business data. ----
+    @app.get("/healthz")
+    def healthz():
+        try:
+            db_module.get_db().execute("SELECT 1").fetchone()
+        except Exception:
+            app.logger.warning("Health check: database not reachable", exc_info=True)
+            return {"ok": False}, 503
+        return {"ok": True}
+
     # ---- auth gate: everything except /login, /forgot-password,
     # /reset-password, /public/*, and /api/* (which authenticates the local
     # hardware agent with its own X-API-Key instead of a browser session —
     # see app/blueprints/api.py) requires a session user ----
     @app.before_request
     def require_login():
-        open_endpoints = {"auth.login", "auth.forgot_password", "auth.reset_password", "static"}
+        open_endpoints = {"auth.login", "auth.forgot_password", "auth.reset_password", "static", "healthz"}
         if request.endpoint and (
             request.endpoint in open_endpoints
             or request.endpoint.startswith("public.")

@@ -13,10 +13,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Uploaded images/docs live here; mounted as a volume in docker-compose.yml
-# so they survive container rebuilds.
+# Uploaded images/docs live here. Mount a volume at this path (a Docker
+# volume in docker-compose.yml, a Railway volume on Railway) so they survive
+# rebuilds and redeploys.
 RUN mkdir -p /app/app/static/uploads
 
+ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8000", "wsgi:app"]
+# Shell form so $PORT (set by Railway and most hosts) is honoured; 8000 when
+# it isn't set. --preload builds the app once before the workers fork, so the
+# first-boot schema setup and the stock import run once, not once per worker.
+CMD gunicorn --preload -w ${WEB_CONCURRENCY:-4} -b 0.0.0.0:${PORT:-8000} --timeout 60 --access-logfile - wsgi:app
