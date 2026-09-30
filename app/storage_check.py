@@ -13,11 +13,51 @@ deploy, so:
 `storage_status()` works that out from plain values so it can be tested
 without Flask; `check_on_boot()` refuses to start on Railway when data would
 be lost, so a bad deploy fails its health check and Railway keeps the old
-one running instead of quietly throwing records away.
+one running instead of quietly throwing records away. `auto_link_uploads()`
+runs first and links uploads onto whatever volume is attached, at whatever
+mount path — so attaching *a* volume to the service is enough on its own,
+no exact path to get right by hand.
 """
 import os
+import shutil
 
 DEFAULT_SECRET = "dev-secret-change-me"
+
+
+def auto_link_uploads(app):
+    """If a Railway volume is attached to this service at all (any mount
+    path — Railway sets RAILWAY_VOLUME_MOUNT_PATH the moment one exists)
+    but uploads aren't inside it yet, symlink app/static/uploads onto the
+    volume so attaching *a* volume is enough — nobody has to type an exact
+    matching mount path into Railway's UI for this to satisfy the check
+    below. Moves any files already sitting in the old location onto the
+    volume first, so nothing already uploaded gets orphaned.
+
+    Best-effort and silent on failure (logs a warning): if this can't run
+    for some reason, storage_status()'s own message already explains
+    exactly what's still wrong, so there's nothing to crash boot over here.
+    """
+    volume = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH")
+    if not volume:
+        return
+    uploads_dir = os.path.join(app.static_folder, "uploads")
+    real_uploads, real_volume = os.path.realpath(uploads_dir), os.path.realpath(volume)
+    if real_uploads == real_volume or real_uploads.startswith(real_volume.rstrip(os.sep) + os.sep):
+        return  # already on the volume — nothing to do
+    try:
+        target = os.path.join(volume, "uploads")
+        os.makedirs(target, exist_ok=True)
+        if os.path.islink(uploads_dir):
+            os.unlink(uploads_dir)
+        elif os.path.isdir(uploads_dir):
+            for name in os.listdir(uploads_dir):
+                src, dst = os.path.join(uploads_dir, name), os.path.join(target, name)
+                if not os.path.exists(dst):
+                    shutil.move(src, dst)
+            shutil.rmtree(uploads_dir, ignore_errors=True)
+        os.symlink(target, uploads_dir)
+    except OSError:
+        app.logger.warning("Could not link app/static/uploads onto the Railway volume", exc_info=True)
 
 
 def _inside(path, mount):

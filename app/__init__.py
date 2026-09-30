@@ -54,9 +54,14 @@ def create_app():
         SESSION_COOKIE_SECURE=os.environ.get("FLASK_DEBUG", "0") != "1",
     )
 
-    # Refuse to start on Railway if records or uploads would be wiped at the
-    # next deploy (see app/storage_check.py); logs the status everywhere else.
-    from .storage_check import check_on_boot
+    # If a volume is attached to this service at all, link uploads onto it
+    # regardless of the exact mount path chosen (see auto_link_uploads'
+    # docstring — this is what makes "just attach a volume" enough, rather
+    # than needing the mount path to exactly match app/static/uploads).
+    # Then refuse to start on Railway if records or uploads would still be
+    # wiped at the next deploy; logs the status everywhere else.
+    from .storage_check import auto_link_uploads, check_on_boot
+    auto_link_uploads(app)
     check_on_boot(app)
 
     db_module.init_db(app)
