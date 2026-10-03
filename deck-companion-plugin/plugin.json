@@ -1,0 +1,11 @@
+{
+  "name": "Deck Companion",
+  "author": "lawlessbaron",
+  "flags": ["debug"],
+  "api_version": 1,
+  "publish": {
+    "tags": ["ai", "companion", "journal", "utility"],
+    "description": "An AI companion that plays alongside you and remembers your adventures. Ask for hints (no spoilers), get caught up on where you left off, and keep a Memory Lane journal of your gaming life.",
+    "image": "https://raw.githubusercontent.com/SteamDeckHomebrew/decky-plugin-database/main/.github/assets/no-image.png"
+  }
+}

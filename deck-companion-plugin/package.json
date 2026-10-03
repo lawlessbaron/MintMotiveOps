@@ -1,0 +1,26 @@
+{
+  "name": "deck-companion",
+  "version": "0.1.0",
+  "description": "An AI game companion + Memory Lane journal for the Steam Deck (Decky Loader plugin).",
+  "type": "module",
+  "scripts": {
+    "build": "shx rm -rf dist && rollup -c",
+    "watch": "rollup -c -w"
+  },
+  "keywords": ["decky", "steam-deck", "ai", "companion"],
+  "license": "MIT",
+  "devDependencies": {
+    "@decky/rollup": "^1.0.1",
+    "@decky/ui": "^4.9.0",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "rollup": "^4.18.0",
+    "shx": "^0.3.4",
+    "tslib": "^2.6.3",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@decky/api": "^1.1.2",
+    "react-icons": "^5.2.1"
+  }
+}
